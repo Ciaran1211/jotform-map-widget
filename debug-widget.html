@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>JotForm Widget Debug</title>
-    <script src="https://cdn.jotfor.ms/js/JotFormCustomWidget.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,7 +31,7 @@
     </style>
 </head>
 <body>
-    <h2>🔧 JotForm Widget Debug</h2>
+    <h2>🔧 JotForm Widget Debug v2</h2>
     
     <div id="status" class="status info">Checking...</div>
     
@@ -56,54 +55,65 @@
         // Log environment info
         log('Page loaded');
         log('URL: ' + window.location.href);
+        log('Protocol: ' + window.location.protocol);
         log('In iframe: ' + (window.self !== window.top));
-        log('Parent origin: ' + (window.self !== window.top ? 'yes (cross-origin blocked)' : 'N/A'));
         
-        // Check for JFCustomWidget
-        let attempts = 0;
-        const maxAttempts = 50;
+        // Check immediately before loading script
+        log('JFCustomWidget before script: ' + typeof JFCustomWidget);
         
-        function checkWidget() {
-            attempts++;
-            log(`Check #${attempts}: JFCustomWidget = ${typeof JFCustomWidget}`);
+        // Dynamically load script and track it
+        log('Loading JotForm widget script...');
+        
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jotfor.ms/js/JotFormCustomWidget.min.js';
+        
+        script.onload = function() {
+            log('✓ Script LOADED successfully');
+            log('JFCustomWidget after load: ' + typeof JFCustomWidget);
             
             if (typeof JFCustomWidget !== 'undefined') {
-                setStatus('success', '✅ JFCustomWidget FOUND! Widget should work.');
-                log('SUCCESS: JFCustomWidget is available');
-                
-                // Try to initialize
-                try {
-                    JFCustomWidget.sendData({ value: 'debug-test', valid: true });
-                    log('sendData() called successfully');
-                    
-                    JFCustomWidget.subscribe('ready', function(data) {
-                        log('READY event received: ' + JSON.stringify(data));
-                    });
-                    
-                    JFCustomWidget.subscribe('submit', function() {
-                        log('SUBMIT event received');
-                        JFCustomWidget.sendSubmit({ value: 'test-value', valid: true });
-                    });
-                    
-                    log('Event subscriptions set up');
-                } catch (e) {
-                    log('ERROR: ' + e.message);
-                }
-                
-            } else if (attempts < maxAttempts) {
-                setTimeout(checkWidget, 100);
+                setStatus('success', '✅ JFCustomWidget FOUND!');
+                initWidget();
             } else {
-                setStatus('error', '❌ JFCustomWidget NOT FOUND after 5 seconds');
-                log('FAILED: JFCustomWidget never loaded');
-                log('');
-                log('Possible causes:');
-                log('1. Not running inside JotForm iframe');
-                log('2. Widget not properly registered');
-                log('3. Script blocked by browser');
+                log('Script loaded but JFCustomWidget not defined');
+                log('Checking window object...');
+                log('window.JFCustomWidget: ' + typeof window.JFCustomWidget);
+                
+                // List all JF* globals
+                var jfVars = Object.keys(window).filter(k => k.startsWith('JF'));
+                log('JF* globals found: ' + (jfVars.length ? jfVars.join(', ') : 'none'));
+                
+                setStatus('error', '❌ Script loaded but JFCustomWidget missing');
+            }
+        };
+        
+        script.onerror = function(e) {
+            log('✗ Script FAILED to load!');
+            log('Error: ' + JSON.stringify(e));
+            setStatus('error', '❌ Script failed to load');
+        };
+        
+        document.head.appendChild(script);
+        
+        function initWidget() {
+            try {
+                JFCustomWidget.sendData({ value: '', valid: true });
+                log('sendData() called');
+                
+                JFCustomWidget.subscribe('ready', function(data) {
+                    log('READY event: ' + JSON.stringify(data));
+                });
+                
+                JFCustomWidget.subscribe('submit', function() {
+                    log('SUBMIT event');
+                    JFCustomWidget.sendSubmit({ value: 'test', valid: true });
+                });
+                
+                log('Widget initialized successfully!');
+            } catch (e) {
+                log('ERROR initializing: ' + e.message);
             }
         }
-        
-        checkWidget();
     </script>
 </body>
 </html>
