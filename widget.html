@@ -9,8 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@8.2.0/ol.css">
     <script src="https://cdn.jsdelivr.net/npm/ol@8.2.0/dist/ol.js"></script>
     
-    <!-- JotForm Widget API (only this one is needed) -->
-    <script src="https://cdn.jotfor.ms/js/JotFormCustomWidget.min.js"></script>
+    <!-- JotForm Widget API - using postMessage directly (no external script needed) -->
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
@@ -430,7 +429,7 @@
             
             const ORTHO_CONFIG = {
                 enabled: true,  // Set to true to enable ortho layer
-                url: 'https://ciaran1211.github.io/jotform-map-widget/Test Ortho.jpg',  // e.g., 'https://username.github.io/repo/ortho.jpg'
+                url: 'YOUR_ORTHO_URL_HERE',  // e.g., 'https://username.github.io/repo/ortho.jpg'
                 
                 // Bounds calculated from your .wld file (UTM Zone 10N assumed)
                 // Format: [minLon, minLat, maxLon, maxLat]
@@ -776,13 +775,11 @@
                 const kml = generateKML();
                 const featureCount = drawSource.getFeatures().length;
                 
-                // Send to JotForm widget API
-                if (typeof JFCustomWidget !== 'undefined') {
-                    JFCustomWidget.sendData({
-                        value: kml,
-                        valid: featureCount > 0
-                    });
-                }
+                // Send to JotForm via postMessage
+                JFWidget.sendData({
+                    value: kml,
+                    valid: featureCount > 0
+                });
             }
             
             // Initialize event listeners
@@ -823,71 +820,96 @@
                 });
             }
             
-            // JotForm Widget Integration
-            function initJotFormWidget() {
-                // Poll for JFCustomWidget (it loads async)
-                let attempts = 0;
-                const maxAttempts = 50; // 5 seconds max
+            // JotForm Widget Integration (using postMessage directly)
+            function getQueryParam(name) {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(name);
+            }
+            
+            const jfQid = getQueryParam('qid');
+            const isInJotForm = (window.self !== window.top) && jfQid;
+            
+            // Custom JotForm Widget API using postMessage
+            const JFWidget = {
+                sendData: function(data) {
+                    if (!isInJotForm) return;
+                    window.parent.postMessage(JSON.stringify({
+                        type: 'data',
+                        qid: jfQid,
+                        value: data.value,
+                        valid: data.valid
+                    }), '*');
+                },
                 
-                function tryInit() {
-                    attempts++;
-                    
-                    if (typeof JFCustomWidget !== 'undefined') {
-                        console.log('JFCustomWidget found, initializing...');
-                        setupJotFormHandlers();
-                    } else if (attempts < maxAttempts) {
-                        setTimeout(tryInit, 100);
-                    } else {
-                        console.log('JFCustomWidget not found - running standalone');
-                    }
+                sendSubmit: function(data) {
+                    if (!isInJotForm) return;
+                    window.parent.postMessage(JSON.stringify({
+                        type: 'submit',
+                        qid: jfQid,
+                        value: data.value,
+                        valid: data.valid
+                    }), '*');
+                }
+            };
+            
+            function initJotFormWidget() {
+                if (!isInJotForm) {
+                    console.log('Running outside JotForm - standalone mode');
+                    return;
                 }
                 
-                tryInit();
+                console.log('Initializing JotForm widget via postMessage, QID:', jfQid);
+                
+                // Signal ready to JotForm
+                JFWidget.sendData({ value: '', valid: true });
+                
+                // Also send frameReady
+                window.parent.postMessage(JSON.stringify({
+                    type: 'frameReady',
+                    qid: jfQid
+                }), '*');
+                
+                // Listen for messages from JotForm
+                window.addEventListener('message', function(event) {
+                    try {
+                        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                        
+                        if (data.type === 'submit') {
+                            console.log('JotForm submit event received');
+                            const kml = generateKML();
+                            JFWidget.sendSubmit({
+                                value: kml,
+                                valid: true
+                            });
+                        }
+                        
+                        if (data.type === 'ready' && data.value) {
+                            console.log('Loading existing KML value');
+                            loadKMLString(data.value);
+                        }
+                        
+                        if (data.type === 'settings') {
+                            const settings = data.settings || {};
+                            if (settings.defaultLat && settings.defaultLng) {
+                                map.getView().setCenter(
+                                    ol.proj.fromLonLat([
+                                        parseFloat(settings.defaultLng),
+                                        parseFloat(settings.defaultLat)
+                                    ])
+                                );
+                            }
+                            if (settings.defaultZoom) {
+                                map.getView().setZoom(parseInt(settings.defaultZoom));
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore non-JSON messages
+                    }
+                });
             }
             
             function setupJotFormHandlers() {
-                // IMPORTANT: Signal ready immediately
-                JFCustomWidget.sendData({
-                    value: '',
-                    valid: true
-                });
-                
-                JFCustomWidget.subscribe('ready', function(data) {
-                    console.log('JotForm widget ready', data);
-                    
-                    // Get widget settings
-                    const settings = data.settings || {};
-                    
-                    // Apply custom center if provided
-                    if (settings.defaultLat && settings.defaultLng) {
-                        map.getView().setCenter(
-                            ol.proj.fromLonLat([
-                                parseFloat(settings.defaultLng),
-                                parseFloat(settings.defaultLat)
-                            ])
-                        );
-                    }
-                    
-                    // Apply custom zoom if provided
-                    if (settings.defaultZoom) {
-                        map.getView().setZoom(parseInt(settings.defaultZoom));
-                    }
-                    
-                    // Load existing value if present
-                    if (data.value) {
-                        loadKMLString(data.value);
-                    }
-                });
-                
-                JFCustomWidget.subscribe('submit', function() {
-                    const kml = generateKML();
-                    const featureCount = drawSource.getFeatures().length;
-                    
-                    JFCustomWidget.sendSubmit({
-                        value: kml,
-                        valid: true // Change to featureCount > 0 if drawing is required
-                    });
-                });
+                // Not used anymore - kept for compatibility
             }
             
             // Load KML string (for editing existing submissions)
