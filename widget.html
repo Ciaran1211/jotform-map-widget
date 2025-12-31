@@ -9,10 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@8.2.0/ol.css">
     <script src="https://cdn.jsdelivr.net/npm/ol@8.2.0/dist/ol.js"></script>
     
-    <!-- JotForm Widget API -->
-    <script src="https://cdn.jotfor.ms/static/prototype.forms.js"></script>
-    <script src="https://cdn.jotfor.ms/static/jotform.forms.js"></script>
-    <script src="https://cdn.jotfor.ms/js/vendor/jquery-1.8.0.min.js"></script>
+    <!-- JotForm Widget API (only this one is needed) -->
     <script src="https://cdn.jotfor.ms/js/JotFormCustomWidget.min.js"></script>
     
     <style>
@@ -828,11 +825,27 @@
             
             // JotForm Widget Integration
             function initJotFormWidget() {
-                if (typeof JFCustomWidget === 'undefined') {
-                    console.log('Running outside JotForm - standalone mode');
-                    return;
+                // Poll for JFCustomWidget (it loads async)
+                let attempts = 0;
+                const maxAttempts = 50; // 5 seconds max
+                
+                function tryInit() {
+                    attempts++;
+                    
+                    if (typeof JFCustomWidget !== 'undefined') {
+                        console.log('JFCustomWidget found, initializing...');
+                        setupJotFormHandlers();
+                    } else if (attempts < maxAttempts) {
+                        setTimeout(tryInit, 100);
+                    } else {
+                        console.log('JFCustomWidget not found - running standalone');
+                    }
                 }
                 
+                tryInit();
+            }
+            
+            function setupJotFormHandlers() {
                 // IMPORTANT: Signal ready immediately
                 JFCustomWidget.sendData({
                     value: '',
