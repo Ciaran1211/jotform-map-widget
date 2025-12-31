@@ -833,6 +833,12 @@
                     return;
                 }
                 
+                // IMPORTANT: Signal ready immediately
+                JFCustomWidget.sendData({
+                    value: '',
+                    valid: true
+                });
+                
                 JFCustomWidget.subscribe('ready', function(data) {
                     console.log('JotForm widget ready', data);
                     
@@ -858,12 +864,6 @@
                     if (data.value) {
                         loadKMLString(data.value);
                     }
-                    
-                    // Mark as valid by default (no required drawing)
-                    JFCustomWidget.sendData({
-                        value: '',
-                        valid: true
-                    });
                 });
                 
                 JFCustomWidget.subscribe('submit', function() {
@@ -900,14 +900,22 @@
             
             // Initialize everything
             function init() {
-                initMap();
-                initEventListeners();
-                initJotFormWidget();
-                
-                // Hide ortho button if not configured
-                if (!orthoLayer) {
-                    const orthoBtn = document.getElementById('orthoBtn');
-                    if (orthoBtn) orthoBtn.style.display = 'none';
+                try {
+                    initMap();
+                    initEventListeners();
+                    initJotFormWidget();
+                    
+                    // Hide ortho button if not configured
+                    if (!orthoLayer) {
+                        const orthoBtn = document.getElementById('orthoBtn');
+                        if (orthoBtn) orthoBtn.style.display = 'none';
+                    }
+                } catch (e) {
+                    console.error('Widget initialization error:', e);
+                    // Still try to signal ready to JotForm
+                    if (typeof JFCustomWidget !== 'undefined') {
+                        JFCustomWidget.sendData({ value: '', valid: true });
+                    }
                 }
             }
             
@@ -917,6 +925,11 @@
             } else {
                 init();
             }
+            
+            // Fallback: also try on window load in case scripts are slow
+            window.addEventListener('load', function() {
+                if (!map) init();
+            });
             
         })();
     </script>
