@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>JotForm Widget Debug</title>
+    <title>JotForm Widget Debug v3 - PostMessage</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -31,7 +31,7 @@
     </style>
 </head>
 <body>
-    <h2>🔧 JotForm Widget Debug v2</h2>
+    <h2>🔧 JotForm Widget Debug v3 (PostMessage)</h2>
     
     <div id="status" class="status info">Checking...</div>
     
@@ -52,68 +52,92 @@
             el.textContent = msg;
         }
         
-        // Log environment info
-        log('Page loaded');
-        log('URL: ' + window.location.href);
-        log('Protocol: ' + window.location.protocol);
-        log('In iframe: ' + (window.self !== window.top));
-        
-        // Check immediately before loading script
-        log('JFCustomWidget before script: ' + typeof JFCustomWidget);
-        
-        // Dynamically load script and track it
-        log('Loading JotForm widget script...');
-        
-        var script = document.createElement('script');
-        script.src = 'https://cdn.jotfor.ms/js/JotFormCustomWidget.min.js';
-        
-        script.onload = function() {
-            log('✓ Script LOADED successfully');
-            log('JFCustomWidget after load: ' + typeof JFCustomWidget);
-            
-            if (typeof JFCustomWidget !== 'undefined') {
-                setStatus('success', '✅ JFCustomWidget FOUND!');
-                initWidget();
-            } else {
-                log('Script loaded but JFCustomWidget not defined');
-                log('Checking window object...');
-                log('window.JFCustomWidget: ' + typeof window.JFCustomWidget);
-                
-                // List all JF* globals
-                var jfVars = Object.keys(window).filter(k => k.startsWith('JF'));
-                log('JF* globals found: ' + (jfVars.length ? jfVars.join(', ') : 'none'));
-                
-                setStatus('error', '❌ Script loaded but JFCustomWidget missing');
-            }
-        };
-        
-        script.onerror = function(e) {
-            log('✗ Script FAILED to load!');
-            log('Error: ' + JSON.stringify(e));
-            setStatus('error', '❌ Script failed to load');
-        };
-        
-        document.head.appendChild(script);
-        
-        function initWidget() {
-            try {
-                JFCustomWidget.sendData({ value: '', valid: true });
-                log('sendData() called');
-                
-                JFCustomWidget.subscribe('ready', function(data) {
-                    log('READY event: ' + JSON.stringify(data));
-                });
-                
-                JFCustomWidget.subscribe('submit', function() {
-                    log('SUBMIT event');
-                    JFCustomWidget.sendSubmit({ value: 'test', valid: true });
-                });
-                
-                log('Widget initialized successfully!');
-            } catch (e) {
-                log('ERROR initializing: ' + e.message);
-            }
+        // Get query params
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
         }
+        
+        const qid = getQueryParam('qid');
+        
+        log('Page loaded');
+        log('In iframe: ' + (window.self !== window.top));
+        log('QID from URL: ' + qid);
+        log('Using direct postMessage (no JotForm script)');
+        
+        // Custom JotForm Widget API using postMessage
+        const JFWidget = {
+            sendData: function(data) {
+                const msg = {
+                    type: 'data',
+                    qid: qid,
+                    value: data.value,
+                    valid: data.valid
+                };
+                log('Sending data: ' + JSON.stringify(msg));
+                window.parent.postMessage(JSON.stringify(msg), '*');
+            },
+            
+            sendSubmit: function(data) {
+                const msg = {
+                    type: 'submit',
+                    qid: qid,
+                    value: data.value,
+                    valid: data.valid
+                };
+                log('Sending submit: ' + JSON.stringify(msg));
+                window.parent.postMessage(JSON.stringify(msg), '*');
+            }
+        };
+        
+        // Listen for messages from JotForm
+        window.addEventListener('message', function(event) {
+            log('Received message from: ' + event.origin);
+            log('Message data: ' + (typeof event.data === 'string' ? event.data : JSON.stringify(event.data)));
+            
+            try {
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                
+                if (data.type === 'ready') {
+                    log('READY event received!');
+                    setStatus('success', '✅ Connected to JotForm!');
+                }
+                
+                if (data.type === 'submit') {
+                    log('SUBMIT event received!');
+                    JFWidget.sendSubmit({ value: 'test-value', valid: true });
+                }
+            } catch (e) {
+                log('Message parse note: ' + e.message);
+            }
+        });
+        
+        // Signal ready to JotForm
+        if (window.self !== window.top && qid) {
+            log('Signaling ready to parent...');
+            JFWidget.sendData({ value: '', valid: true });
+            setStatus('info', '⏳ Waiting for JotForm response...');
+            
+            // Also try the frameReady message format
+            window.parent.postMessage(JSON.stringify({
+                type: 'frameReady',
+                qid: qid
+            }), '*');
+            log('Sent frameReady signal');
+            
+        } else {
+            setStatus('error', '❌ Not in iframe or missing QID');
+            log('Cannot connect - not in proper JotForm context');
+        }
+        
+        // Timeout check
+        setTimeout(function() {
+            const status = document.getElementById('status');
+            if (status.textContent.includes('Waiting')) {
+                log('No response from JotForm after 5 seconds');
+                log('Widget may still work - try submitting the form');
+            }
+        }, 5000);
     </script>
 </body>
 </html>
