@@ -371,6 +371,7 @@
             <div class="layer-selector">
                 <button class="layer-btn active" data-layer="osm">Street</button>
                 <button class="layer-btn" data-layer="satellite">Satellite</button>
+                <button class="layer-btn" data-layer="ortho" id="orthoBtn">Ortho</button>
             </div>
         </div>
         
@@ -422,6 +423,24 @@
             let currentTool = null;
             let featureHistory = [];
             
+            // ==============================================
+            // ORTHO IMAGE CONFIGURATION
+            // ==============================================
+            // To use your own ortho image:
+            // 1. Convert .sid to .jpg using QGIS or GDAL
+            // 2. Upload the .jpg to GitHub (same repo as widget)
+            // 3. Update ORTHO_CONFIG below with your values
+            
+            const ORTHO_CONFIG = {
+                enabled: true,  // Set to true to enable ortho layer
+                url: 'https://ciaran1211.github.io/jotform-map-widget/Test Ortho.jpg',  // e.g., 'https://username.github.io/repo/ortho.jpg'
+                
+                // Bounds calculated from your .wld file (UTM Zone 10N assumed)
+                // Format: [minLon, minLat, maxLon, maxLat]
+                bounds: [-122.565, 44.540, -122.559, 44.545]
+            };
+            // ==============================================
+            
             // Base layers
             const osmLayer = new ol.layer.Tile({
                 source: new ol.source.OSM(),
@@ -435,6 +454,22 @@
                 }),
                 visible: false
             });
+            
+            // Ortho image layer (created if enabled)
+            let orthoLayer = null;
+            if (ORTHO_CONFIG.enabled && ORTHO_CONFIG.url !== 'YOUR_ORTHO_URL_HERE') {
+                orthoLayer = new ol.layer.Image({
+                    source: new ol.source.ImageStatic({
+                        url: ORTHO_CONFIG.url,
+                        imageExtent: ol.proj.transformExtent(
+                            ORTHO_CONFIG.bounds,
+                            'EPSG:4326',
+                            'EPSG:3857'
+                        )
+                    }),
+                    visible: false
+                });
+            }
             
             // Drawing style
             const drawStyle = new ol.style.Style({
@@ -461,9 +496,16 @@
                     style: drawStyle
                 });
                 
+                // Build layers array
+                const layers = [osmLayer, satelliteLayer];
+                if (orthoLayer) {
+                    layers.push(orthoLayer);
+                }
+                layers.push(drawLayer);
+                
                 map = new ol.Map({
                     target: 'map',
-                    layers: [osmLayer, satelliteLayer, drawLayer],
+                    layers: layers,
                     view: new ol.View({
                         center: ol.proj.fromLonLat(CONFIG.defaultCenter),
                         zoom: CONFIG.defaultZoom,
@@ -596,6 +638,20 @@
                 
                 osmLayer.setVisible(layerType === 'osm');
                 satelliteLayer.setVisible(layerType === 'satellite');
+                
+                if (orthoLayer) {
+                    orthoLayer.setVisible(layerType === 'ortho');
+                    
+                    // Zoom to ortho extent when selected
+                    if (layerType === 'ortho') {
+                        const extent = ol.proj.transformExtent(
+                            ORTHO_CONFIG.bounds,
+                            'EPSG:4326',
+                            'EPSG:3857'
+                        );
+                        map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 19 });
+                    }
+                }
             }
             
             // Generate KML from features
@@ -847,6 +903,12 @@
                 initMap();
                 initEventListeners();
                 initJotFormWidget();
+                
+                // Hide ortho button if not configured
+                if (!orthoLayer) {
+                    const orthoBtn = document.getElementById('orthoBtn');
+                    if (orthoBtn) orthoBtn.style.display = 'none';
+                }
             }
             
             // Start when DOM is ready
