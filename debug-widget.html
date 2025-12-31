@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>JotForm Widget Debug</title>
+    <script src="https://cdn.jotfor.ms/js/JotFormCustomWidget.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #cce5ff; color: #004085; }
+        #log {
+            background: #1e1e1e;
+            color: #0f0;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <h2>🔧 JotForm Widget Debug</h2>
+    
+    <div id="status" class="status info">Checking...</div>
+    
+    <h3>Debug Log:</h3>
+    <div id="log"></div>
+
+    <script>
+        function log(msg) {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${time}] ${msg}\n`;
+            console.log(msg);
+        }
+        
+        function setStatus(type, msg) {
+            const el = document.getElementById('status');
+            el.className = 'status ' + type;
+            el.textContent = msg;
+        }
+        
+        // Log environment info
+        log('Page loaded');
+        log('URL: ' + window.location.href);
+        log('In iframe: ' + (window.self !== window.top));
+        log('Parent origin: ' + (window.self !== window.top ? 'yes (cross-origin blocked)' : 'N/A'));
+        
+        // Check for JFCustomWidget
+        let attempts = 0;
+        const maxAttempts = 50;
+        
+        function checkWidget() {
+            attempts++;
+            log(`Check #${attempts}: JFCustomWidget = ${typeof JFCustomWidget}`);
+            
+            if (typeof JFCustomWidget !== 'undefined') {
+                setStatus('success', '✅ JFCustomWidget FOUND! Widget should work.');
+                log('SUCCESS: JFCustomWidget is available');
+                
+                // Try to initialize
+                try {
+                    JFCustomWidget.sendData({ value: 'debug-test', valid: true });
+                    log('sendData() called successfully');
+                    
+                    JFCustomWidget.subscribe('ready', function(data) {
+                        log('READY event received: ' + JSON.stringify(data));
+                    });
+                    
+                    JFCustomWidget.subscribe('submit', function() {
+                        log('SUBMIT event received');
+                        JFCustomWidget.sendSubmit({ value: 'test-value', valid: true });
+                    });
+                    
+                    log('Event subscriptions set up');
+                } catch (e) {
+                    log('ERROR: ' + e.message);
+                }
+                
+            } else if (attempts < maxAttempts) {
+                setTimeout(checkWidget, 100);
+            } else {
+                setStatus('error', '❌ JFCustomWidget NOT FOUND after 5 seconds');
+                log('FAILED: JFCustomWidget never loaded');
+                log('');
+                log('Possible causes:');
+                log('1. Not running inside JotForm iframe');
+                log('2. Widget not properly registered');
+                log('3. Script blocked by browser');
+            }
+        }
+        
+        checkWidget();
+    </script>
+</body>
+</html>
