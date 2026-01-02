@@ -10,7 +10,7 @@
   "saraji": {
     "name": "Saraji",
     "tileUrl": "https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/saraji/{z}/{x}/{y}.png",
-    "center": [148.23,-22.31],
+    "center": [148.29,-22.40],
     "minZoom": 14,
     "maxZoom": 21,
     "defaultZoom": 17
