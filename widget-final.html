@@ -864,16 +864,34 @@
                 });
             }
             
-            // Fullscreen toggle
+            // Fullscreen toggle - uses browser Fullscreen API when available
             function toggleFullscreen(enable) {
                 const container = document.querySelector('.widget-container');
                 
                 if (enable) {
-                    container.classList.add('fullscreen');
-                    document.body.style.overflow = 'hidden';
+                    // Try browser Fullscreen API first (works if iframe allows it)
+                    if (container.requestFullscreen) {
+                        container.requestFullscreen();
+                    } else if (container.webkitRequestFullscreen) {
+                        container.webkitRequestFullscreen();
+                    } else if (container.msRequestFullscreen) {
+                        container.msRequestFullscreen();
+                    } else {
+                        // Fallback to CSS fullscreen within iframe
+                        container.classList.add('fullscreen');
+                        document.body.style.overflow = 'hidden';
+                    }
                 } else {
-                    container.classList.remove('fullscreen');
-                    document.body.style.overflow = '';
+                    if (document.fullscreenElement || document.webkitFullscreenElement) {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        }
+                    } else {
+                        container.classList.remove('fullscreen');
+                        document.body.style.overflow = '';
+                    }
                 }
                 
                 // OpenLayers needs to update its size after container change
@@ -883,7 +901,26 @@
             }
             
             function isFullscreen() {
-                return document.querySelector('.widget-container').classList.contains('fullscreen');
+                return document.fullscreenElement || 
+                       document.webkitFullscreenElement || 
+                       document.querySelector('.widget-container').classList.contains('fullscreen');
+            }
+            
+            // Listen for fullscreen changes (user pressing Escape in browser fullscreen)
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+            
+            function handleFullscreenChange() {
+                const container = document.querySelector('.widget-container');
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    container.classList.remove('fullscreen');
+                    document.body.style.overflow = '';
+                } else {
+                    container.classList.add('fullscreen');
+                }
+                setTimeout(() => {
+                    if (map) map.updateSize();
+                }, 100);
             }
             
             // Event listeners
