@@ -1,3 +1,1458 @@
+
+I need to be able to generate KML files by drawing on a map region. I need to be able to do this in a JotForm. I either need to use map regions or otho images to allow people to annotate on and submit with the JotForm. Someone recommended Leaflet.js but are there other options? If I have to use Leaflet.js, how would I use that in my JotForm?
+
+Dec 31, 2025
+
+Evaluated map libraries and devised JotForm integration strategies.
+
+
+
+
+
+
+This is a great question - there are several options beyond Leaflet.js, and integrating any of them into JotForm requires some creative workarounds since JotForm doesn't have native map drawing support.
+
+Map Drawing Library Options
+Library	Pros	Cons
+Leaflet.js + Leaflet.draw	Lightweight, huge plugin ecosystem, easy to learn, free	Less performant with very large datasets
+OpenLayers	Full-featured GIS toolkit, great for ortho imagery, native draw tools	Steeper learning curve, heavier
+Mapbox GL JS	Beautiful vector maps, smooth performance, draw plugin available	Requires API key, costs at scale
+Google Maps + Drawing Library	Familiar UX, well-documented	API costs, less flexible for custom imagery
+Turf.js (with any above)	Great for geometry operations and KML export	Just a helper, not a map renderer
+For orthoimages specifically, OpenLayers tends to handle custom imagery layers more elegantly, but Leaflet can do it too.
+
+JotForm Integration Approaches
+JotForm doesn't support custom map widgets natively, so you have three main paths:
+
+1. Embed Widget (Simplest)
+Use JotForm's "Embed Code" widget to insert an iframe pointing to a standalone map page you host. The drawn geometry gets passed back to a hidden JotForm field via postMessage.
+
+2. JotForm Custom Widget (Most Integrated)
+Build a proper JotForm widget that wraps your map library - this gives you tighter integration with form validation and submission.
+
+3. External Page with Redirect
+Have users draw on a separate page, store the KML, then redirect them to the JotForm with a reference ID pre-filled.
+
+Would you like me to build you a working example? I could create either:
+
+A standalone Leaflet map page with drawing tools that exports KML and demonstrates the JotForm embed approach
+An OpenLayers version if you're working with custom ortho imagery
+A JotForm custom widget template if you want the tightest integration
+Which direction interests you most?
+
+Let's do OpenLayers in a JotForm Custom Widget
+
+Dec 31, 2025
+
+1 step
+Check frontend design skill for best practices
+
+Architected comprehensive OpenLayers mapping widget for JotForm integration.
+
+
+
+
+I'll build you a complete JotForm Custom Widget with OpenLayers that includes drawing tools and KML export. Let me create a comprehensive, production-ready implementation.
+
+
+Create a JotForm Custom Widget with OpenLayers for map drawing and KML export
+widget.html
+
+Orchestrated comprehensive documentation and preview artifacts.
+
+Now let me create a setup guide explaining how to register this as a JotForm widget:
+
+
+4 steps
+
+Presented 2 files
+
+Synthesized OpenLayers integration with JotForm custom widget functionality.
+
+I've created a complete JotForm Custom Widget with OpenLayers. Here's what's included:
+
+What You Get
+The Widget (widget.html) includes:
+
+5 drawing tools: Polygon, Rectangle, Circle, Line, Point
+Base map switching: Street (OpenStreetMap) and Satellite (ESRI)
+Undo/Clear functionality with keyboard shortcuts (Ctrl+Z, Escape)
+KML export with download button
+JotForm Widget API integration - automatically sends drawn geometry when form is submitted
+Geolocation - auto-centers on user's location when permitted
+Quick Setup Steps
+Host the widget on any HTTPS server (GitHub Pages is free and easy)
+Register it at https://www.jotform.com/developers/widgets/
+Add to your form via the Widgets panel in Form Builder
+For Custom Orthoimages
+If you need to add your own ortho imagery instead of the default satellite layer, add this to the JavaScript:
+
+javascript
+const orthoLayer = new ol.layer.Tile({
+    source: new ol.source.TileWMS({
+        url: 'https://your-wms-server.com/wms',
+        params: { 'LAYERS': 'ortho-layer-name' }
+    })
+});
+Or for a static image overlay:
+
+javascript
+const imageLayer = new ol.layer.Image({
+    source: new ol.source.ImageStatic({
+        url: 'https://your-server.com/ortho.png',
+        imageExtent: [minLon, minLat, maxLon, maxLat]
+    })
+});
+The setup guide has full details on registration, customization, and troubleshooting. Want me to modify anything - different default location, different drawing tools, or add support for a specific orthoimage format?
+
+Widget
+Code · HTML 
+Setup guide
+Document · MD 
+How do I host the widget on Github?
+
+Dec 31, 2025
+
+Identified straightforward GitHub Pages hosting instructions to provide.
+
+Here's how to host your widget on GitHub Pages:
+
+Step-by-Step GitHub Pages Setup
+1. Create a GitHub Account (if needed)
+Go to https://github.com and sign up for a free account.
+
+2. Create a New Repository
+Click the + icon in the top right → New repository
+Name it something like jotform-map-widget
+Set it to Public (required for free GitHub Pages)
+Check "Add a README file"
+Click Create repository
+3. Upload the Widget File
+In your new repository, click Add file → Upload files
+Drag and drop widget.html into the upload area
+Click Commit changes
+4. Enable GitHub Pages
+Go to Settings (tab at the top of your repo)
+Scroll down to Pages in the left sidebar
+Under "Source", select Deploy from a branch
+Under "Branch", select main and / (root)
+Click Save
+5. Get Your Widget URL
+After a minute or two, your widget will be live at:
+
+https://YOUR-USERNAME.github.io/jotform-map-widget/widget.html
+Replace YOUR-USERNAME with your actual GitHub username.
+
+Quick Test
+Visit that URL in your browser - you should see the map widget working. Once confirmed, use that URL when registering your widget in JotForm's Widget Wizard.
+
+The deployment typically takes 1-2 minutes. If it doesn't work immediately, wait a moment and refresh.
+
+What widget type do I choose in JotForm? iFrame Widget, oEmbed widget?
+
+Dec 31, 2025
+
+Evaluated widget types and identified appropriate architecture.
+
+
+
+
+Choose iFrame Widget.
+
+This is the correct type because:
+
+iFrame Widget - Loads your custom HTML/JS in an iframe and uses the JFCustomWidget API to communicate with the form. This is what the widget I built uses.
+oEmbed Widget - For embedding content from third-party services (YouTube, Vimeo, etc.) that support the oEmbed standard. Not applicable here.
+When you select iFrame Widget, you'll paste your GitHub Pages URL:
+
+https://YOUR-USERNAME.github.io/jotform-map-widget/widget.html
+And set the dimensions to something like 100% width and 550-600px height to give the map enough space.
+
+what's a wms server? Do I need that if I have an ortho jpg?
+
+Dec 31, 2025
+
+Clarified WMS concept and determined single image alternative.
+
+
+
+
+No, you don't need a WMS server for a simple ortho JPG.
+
+WMS (Web Map Service) is a protocol used by large organizations (governments, mapping agencies) to serve map tiles on-demand from massive datasets. It's overkill for a single image.
+
+For Your Ortho JPG
+You just need two things:
+
+Host the JPG somewhere accessible (GitHub, your server, etc.)
+Know the geographic bounds - the coordinates of the image corners (minLon, minLat, maxLon, maxLat)
+Then you'd use OpenLayers' ImageStatic source:
+
+javascript
+const orthoLayer = new ol.layer.Image({
+    source: new ol.source.ImageStatic({
+        url: 'https://your-site.com/ortho.jpg',
+        imageExtent: ol.proj.transformExtent(
+            [minLon, minLat, maxLon, maxLat],  // bounds in lat/lng
+            'EPSG:4326',
+            'EPSG:3857'
+        )
+    })
+});
+Do You Know Your Image Bounds?
+The tricky part is getting those corner coordinates. How you get them depends on where the ortho came from:
+
+Drone software (Pix4D, DroneDeploy, etc.) - usually exports a "world file" (.jgw) or GeoTIFF with embedded coordinates
+Surveyor/GIS provider - should give you the extent
+Manual - you'd need to figure out the corners using a reference map
+Do you know the geographic extent of your ortho, or do you need help figuring that out?
+
+
+orth175595492952008fbs.wld
+wld
+
+I have a wld file I think that has coordinate information in it?
+
+Dec 31, 2025
+
+1 step
+
+Check the world file contents for coordinate information
+Show working file
+
+Deciphered world file structure and identified missing image dimensions.
+
+
+
+
+
+
+
+
+Yes! That's a world file. Here's what it tells us:
+
+Line	Value	Meaning
+1	0.3	Pixel width (0.3 meters per pixel)
+2	0.0	Rotation (none)
+3	0.0	Rotation (none)
+4	-0.3	Pixel height (negative = image Y goes down)
+5	559498.85	X coordinate of upper-left pixel
+6	4930000.99	Y coordinate of upper-left pixel
+What I Need From You
+Those coordinates (559498, 4930000) are in a projected coordinate system (likely UTM), not lat/lng. To convert them properly, I need:
+
+Image dimensions - How many pixels wide and tall is your ortho JPG?
+Location or coordinate system - Either:
+What UTM zone or EPSG code? (might be in your project files)
+Or just tell me roughly where this is (city/region) and I can figure out the zone
+With that info, I can calculate the exact geographic bounds and update the widget to display your ortho image.
+
+1674 x 1674 dimensions
+
+Dec 31, 2025
+
+Calculated image extent and pondered coordinate system identification.
+
+
+
+
+
+
+
+
+
+
+Got it. Now I can calculate the extent:
+
+Image bounds (in projected meters):
+
+Upper-left: (559498.85, 4930000.99)
+Lower-right: (560001.05, 4929498.79)
+Size: ~502m × 502m
+One More Thing
+Those coordinates are in UTM (a projected system), not lat/lng. The Y value (~4,930,000) tells me you're roughly around 44-45°N latitude, but I need to know the UTM zone to convert accurately.
+
+Where is this located? Just a city or region is fine - for example:
+
+US: Oregon, Montana, Michigan, Maine, New York?
+Europe: Southern France, Northern Italy, Croatia?
+Australia: Perth area? (from your location)
+Or if you happen to know the EPSG code or UTM zone from your project files, that works too.
+
+Would an sdw and sid file work better? How can I use them in my widget?
+
+Dec 31, 2025
+
+Evaluated file format compatibility and conversion requirements for web display.
+
+
+
+
+
+Unfortunately, .sid files won't work directly in a web browser.
+
+The File Types
+File	What It Is	Browser Support
+.sid	MrSID - compressed aerial imagery format (proprietary)	❌ No
+.sdw	World file for .sid (same coordinate format as your .wld)	N/A
+.jpg/.png	Standard image formats	✅ Yes
+What You Need to Do
+Convert the .sid to JPG or PNG. Free options:
+
+QGIS (Free, Desktop)
+
+Download QGIS: https://qgis.org
+Drag your .sid file onto the map
+Right-click the layer → Export → Save As
+Choose JPEG or PNG, save it
+GDAL (Free, Command Line)
+
+bash
+gdal_translate input.sid output.jpg -of JPEG
+The .sdw file has the same coordinate info as your .wld, so once you have a JPG, we can use those values.
+
+Still Need Your Location
+To properly position the image on the map, I still need to know roughly where this is located (city/region) so I can determine the UTM zone for coordinate conversion.
+
+Or if you open the .sid in QGIS, it might show you the coordinate system (EPSG code) in the layer properties.
+
+I have no idea where this picture was taken, this is for testing purposes, so the location accuracy doesn't have to be perfect
+
+Dec 31, 2025
+
+Estimated geographic location using coordinate analysis for testing.
+
+
+
+
+
+No problem! I'll assume UTM Zone 10N (US West Coast) - it'll display the image somewhere in Oregon, which is fine for testing.
+
+Calculated Bounds
+Upper-left:  -122.565°, 44.545°
+Lower-right: -122.559°, 44.540°
+Next Steps
+Convert your .sid to .jpg using QGIS or GDAL (as mentioned above)
+Host the JPG on GitHub alongside your widget
+Update the widget - I'll modify it now to include your ortho layer:
+
+12 steps
+
+Presented file
+
+Orchestrated explanation of ortho image modifications and usage.
+
+Updated! The widget now supports ortho images. Here's what you need to do:
+
+To Add Your Ortho Image
+1. Convert .sid to .jpg using QGIS:
+
+Open QGIS, drag in your .sid file
+Right-click layer → Export → Save As → JPEG
+2. Upload both files to GitHub:
+
+widget.html
+ortho.jpg (your converted image)
+3. Edit the config in widget.html (around line 145):
+
+javascript
+const ORTHO_CONFIG = {
+    enabled: true,
+    url: 'https://YOUR-USERNAME.github.io/jotform-map-widget/ortho.jpg',
+    bounds: [-122.565, 44.540, -122.559, 44.545]
+};
+Just replace YOUR-USERNAME with your GitHub username and the repo name.
+
+How It Works
+An "Ortho" button appears in the layer switcher (alongside Street/Satellite)
+Clicking it shows your ortho image and automatically zooms to it
+Users can draw on top of the ortho and export KML as before
+The ortho button stays hidden until you configure a valid URL, so the widget works normally in the meantime.
+
+Widget
+Code · HTML 
+I don't want the user to have to download the kml then upload it to the form. Is there a way they can just draw on the map as they want, and then when they submit the form, the kml gets submitted with it, like using a draw on image widget.
+
+Also, is it possible for that KML to be sent as an attachment in a notification email from Jotform, like how u can choose for file uploads to the form to be sent as attachments?
+
+Dec 31, 2025
+
+Evaluated auto-submit capability and explored email attachment workarounds.
+11s
+
+
+
+
+
+
+
+
+
+
+
+
+Good news on the first part - the widget already does this! The KML automatically submits with the form. The "Export KML" button is just an optional extra if users want a local copy.
+
+When users submit the form, the JFCustomWidget.sendSubmit() function sends the KML data to JotForm automatically. No download/upload needed.
+
+The Email Attachment Problem
+Unfortunately, JotForm can't send widget data as email attachments - that feature only works with actual file upload fields. Your KML gets stored as text in the submission, not as a file.
+
+Workarounds
+Option 1: Webhook + Automation (Zapier/Make)
+
+Set up a JotForm webhook to Zapier
+Zapier receives the KML text, creates a .kml file, and emails it
+Requires a Zapier account (free tier may work)
+Option 2: Access via JotForm Submissions
+
+The KML is saved in each submission
+Download submissions as CSV/Excel → KML data is in a column
+Not automatic, but the data is there
+Option 3: Modify Widget to Upload File
+
+Widget could upload the KML to a file storage service (S3, Google Drive, etc.)
+Store the file URL in JotForm instead of raw KML
+Requires setting up external storage + API credentials
+Want me to update the widget to make the "Export KML" button less prominent (since it's optional), or would you like help setting up one of the email attachment workarounds?
+
+Jotform is stuck on please wait for some reason?
+
+Dec 31, 2025
+
+Diagnosed widget loading failure and identified debugging strategies.
+
+
+
+That's usually caused by the widget not signaling to JotForm that it's ready. Let me check the code and fix it:
+
+
+6 steps
+
+View the JotForm initialization code
+Show working file
+
+Diagnosed widget initialization flaw and restructured event handling.
+
+
+
+
+Found the issue. The widget needs to signal JotForm it's ready immediately, not wait for JotForm's ready event. Let me fix it:
+
+
+8 steps
+
+Presented file
+
+Articulated solution and prepared clarification.
+
+Fixed! The issue was the widget was waiting for JotForm before signaling it was ready, creating a deadlock.
+
+What I changed:
+
+Moved JFCustomWidget.sendData() to run immediately on load (not waiting for JotForm's ready event)
+Added error handling so it still signals ready even if something fails
+Added a window.onload fallback
+Re-upload the new widget.html to GitHub, then try again.
+
+If it's still stuck, open your browser's Developer Console (F12 → Console tab) while viewing the form and tell me what errors you see. That'll help pinpoint the issue.
+
+Widget
+Code · HTML 
+1767184164423_image.png
+Dec 31, 2025
+
+Diagnosed widget initialization failure and devised polling solution.
+
+
+
+
+
+I see the problem! The console shows "Running outside JotForm - standalone mode" - which means JFCustomWidget isn't being detected.
+
+This happens because the JotForm API script loads asynchronously. Let me fix the timing:
+
+
+6 steps
+
+Presented file
+
+Debugged script conflicts and enhanced asynchronous loading handling.
+
+
+I made two fixes:
+
+Removed unnecessary scripts - Those prototype.forms.js and jotform.forms.js files were causing the permission errors and aren't needed for widgets
+Added polling for JFCustomWidget - Instead of checking once, it now waits up to 5 seconds for the API to load
+Re-upload to GitHub and try again. The console should now show "JFCustomWidget found, initializing..." instead of "standalone mode".
+
+If it still doesn't work, can you also confirm:
+
+Did you select iFrame Widget when creating it?
+What URL did you enter in the widget wizard?
+Widget
+Code · HTML 
+Console now says:
+JFCustomWidget not found - running standalone
+
+Dec 31, 2025
+
+Diagnosed widget loading issue and contemplated alternative testing approaches.
+
+
+
+
+
+
+
+
+
+That means the widget isn't loading inside JotForm's iframe properly. Let me ask:
+
+How are you testing this?
+
+Opening the GitHub Pages URL directly in browser? → That will always show "standalone" (expected)
+Inside JotForm Form Builder preview? → Should work
+On a live/preview form? → Should work
+If you ARE testing inside JotForm and it's still not working, the issue is likely the widget registration. Let me create a simpler debug version that will show us what's happening:
+
+
+4 steps
+
+Presented file
+
+Diagnosed widget isolation issue and identified registration problem.
+
+
+Upload this debug-widget.html to your GitHub repo, then either:
+
+Option A: Update your existing widget to point to this URL temporarily:
+
+https://YOUR-USERNAME.github.io/repo/debug-widget.html
+Option B: Create a new test widget in JotForm pointing to the debug URL
+
+Then open your form in the Form Builder preview and tell me what the debug page shows:
+
+Does it say ✅ "JFCustomWidget FOUND" or ❌ "NOT FOUND"?
+What does the debug log show?
+This will tell us exactly where the problem is.
+
+Debug widget
+Code · HTML 
+FAILED: JFCustomWidget never loaded [8:40:37 pm] [8:40:37 pm] Possible causes: [8:40:37 pm] 1. Not running inside JotForm iframe [8:40:37 pm] 2. Widget not properly registered [8:40:37 pm] 3. Script blocked by browser
+
+Dec 31, 2025
+
+Diagnosed widget loading failure and identified diagnostic questions.
+
+
+
+That confirms the widget isn't running inside JotForm's iframe. Let's troubleshoot:
+
+Quick questions:
+
+Where are you viewing this?
+In the JotForm Form Builder with the widget on your form?
+Previewing the form (clicking the eye/preview button)?
+Opening the GitHub URL directly?
+Is the widget actually on your form?
+Did you drag the widget from the Widgets panel onto your form?
+Can you share a screenshot of your widget settings in the JotForm Widget Wizard? I want to see:
+The Widget URL you entered
+The widget type selected
+Also try this: In JotForm Form Builder, right-click on the widget area and choose "Inspect" - check if there's an <iframe> element and what its src attribute is. That will tell us if JotForm is even trying to load your widget.
+
+I'm using the publish link to access the form. The widget is definitely in the form. Here is the iframe tag:
+
+<iframe data-client-id="4b070873002115e8710acbd8" data-unique-id="" title="Test Drawing Widget" frameborder="0" scrolling="no" allowtransparency="true" allow="geolocation; microphone; camera; autoplay; encrypted-media; fullscreen" data-type="iframe" class="custom-field-frame custom-field-frame-rendered" id="customFieldFrame_95" src="//ciaran1211.github.io/jotform-map-widget/debug-widget.html?qid=95&amp;isOpenedInPortal=undefined&amp;isOpenedInAgent=undefined&amp;align=Left&amp;ref=https%3A%2F%2Fwww.jotform.com&amp;injectCSS=false" data-width="600" data-height="600" style="max-width: 600px; border: none; width: 100%; height: 600px;"></iframe>
+
+Show more
+Dec 31, 2025
+
+Investigated script loading issues and protocol-relative URL complications.
+
+
+
+
+
+
+
+
+
+
+
+The iframe is loading correctly. The issue is the JotForm widget script itself. Let me create an updated debug that checks if the script is even loading:
+
+
+4 steps
+
+Presented file
+
+Devised diagnostic approach to isolate widget loading issues.
+
+
+Upload this updated debug-widget.html to GitHub and test again.
+
+This version tracks:
+
+Whether the script file loads at all
+Whether JFCustomWidget exists after loading
+What other JF* variables might be present
+Tell me what the log shows - specifically whether it says:
+
+"✓ Script LOADED successfully" or "✗ Script FAILED to load"
+What it says about JFCustomWidget after load
+Debug widget
+Code · HTML 
+[8:47:00 pm] Page loaded [8:47:00 pm] URL: https://ciaran1211.github.io/jotform-map-widget/debug-widget.html?qid=96&isOpenedInPortal=undefined&isOpenedInAgent=undefined&align=Left&ref=https%3A%2F%2Fform.jotform.com&injectCSS=false [8:47:00 pm] Protocol: https: [8:47:00 pm] In iframe: true [8:47:00 pm] JFCustomWidget before script: undefined [8:47:00 pm] Loading JotForm widget script... [8:47:01 pm] ✗ Script FAILED to load! [8:47:01 pm] Error: {"isTrusted":true}
+
+Dec 31, 2025
+
+Diagnosed script loading failure, pivoted toward postMessage workaround.
+
+
+
+
+
+
+The JotForm script is being blocked. This is likely a CORS/CDN issue. Let me create a version that uses postMessage directly instead of relying on JotForm's script:
+
+
+2 steps
+
+Copy v3 debug widget
+
+
+
+Pivoted widget implementation toward direct postMessage approach.
+
+Now let me also update the main widget to use postMessage directly:
+
+
+8 steps
+
+Presented 2 files
+
+Devised workaround bypassing blocked script dependency.
+
+The JotForm script is being blocked (possibly a CDN issue). I've rewritten everything to use postMessage directly - no external JotForm scripts needed.
+
+Upload both files to GitHub:
+
+debug-widget-v3.html - Test this first to confirm the connection works
+widget.html - The updated main widget
+Update your JotForm widget to point to debug-widget-v3.html first. You should see:
+
+"Signaling ready to parent..."
+"Sent frameReady signal"
+Possibly messages received from JotForm
+Then try submitting the form and let me know what happens.
+
+Widget
+Code · HTML 
+Debug widget v3
+Code · HTML 
+Okay, I have a TIF File to use as the background for drawing the KML. What do I do now? In future, I will have multiple TIF files for different clients to draw KMLs on different sites.
+
+8:05 AM
+
+Architected conversion strategy and scalable multi-site configuration system.
+
+
+
+
+TIF files won't display in browsers, so we need to convert them. Here's the plan:
+
+Step 1: Convert TIF to JPG/PNG
+Upload your TIF file here and I'll convert it for you. If it's a GeoTIFF, I can also extract the coordinate bounds automatically.
+
+Step 2: For Multiple Clients/Sites
+Since you'll have different images for different clients, we have a few options:
+
+Option A: Multiple Widgets
+
+Create separate widgets for each client (widget-clientA.html, widget-clientB.html)
+Each has its own image hardcoded
+Option B: URL Parameter (Recommended)
+
+Single widget that reads the image from a URL parameter
+Configure per-form in JotForm: widget.html?site=clientA
+Widget loads the matching image from a config file or naming convention
+Option C: Widget Settings
+
+Use JotForm's widget settings panel to specify the image URL per form
+Questions:
+
+Do you have the TIF file to upload now? (I can convert it and extract coordinates if it's a GeoTIFF)
+How do you want to manage multiple sites?
+Will you create separate JotForm forms per client?
+Or one form that somehow switches based on who's filling it out?
+Where will you host the images? Same GitHub repo, or somewhere else like S3/company server?
+Do u have to do something with map layers or tiles to make this work?
+
+8:07 AM
+
+Weighed image size against layer complexity requirements.
+
+
+
+
+
+
+
+It depends on image size:
+
+Small Images (< 20MB, typical site ortho)
+No tiles needed - the widget already handles this. It loads the whole image as a single layer and overlays it on the map. This is what I've set up.
+
+Large Images (> 50MB, huge coverage area)
+Yes, you'd need tiles - otherwise the browser chokes trying to load a 500MB image. This involves:
+
+Cutting the image into 256x256px tiles at multiple zoom levels
+Hosting those tiles in a folder structure or tile server
+Using OpenLayers' tile layer instead of static image
+What's Your Situation?
+How big are your ortho TIF files typically?
+
+Under 50MB → Simple conversion to JPG, no tiling needed
+50-200MB → Might work, but should compress/resize
+Over 200MB → Should tile for performance
+What area do they cover?
+
+Single building/small site → Usually fine as-is
+Large property/farm → May need tiling
+Entire suburb/city → Definitely needs tiling
+If you upload your TIF, I can check the file size and dimensions and tell you the best approach. For most single-site orthoimages from drone surveys, a compressed JPG works fine without any tiling.
+
+The file is 842mb. It's quite large and I think this is one of the smaller areas.
+
+8:09 AM
+
+Deliberated tiling strategies and hosting solutions for large imagery files.
+
+
+
+
+
+842MB definitely needs tiling. And if this is a smaller one, you'll want a proper tile workflow.
+
+The Plan
+1. Convert TIF → Tiles
+
+Use GDAL (free command-line tool) to create a tile pyramid:
+
+bash
+gdal2tiles.py -z 10-21 -w none input.tif output_tiles/
+```
+
+This creates a folder structure like:
+```
+output_tiles/
+├── 10/
+│   ├── 123/
+│   │   ├── 456.png
+│   │   └── 457.png
+├── 11/
+│   ├── ...
+2. Host the Tiles
+
+For 842MB+ source files, GitHub won't cut it. You'll need:
+
+AWS S3 or Azure Blob Storage (cheap, scalable)
+Your own web server
+Cloud service like MapTiler (does the conversion for you, but costs money)
+3. Widget Loads Tiles
+
+Instead of a single image, the widget loads tiles on-demand as users pan/zoom - much faster.
+
+Questions to Decide the Approach
+Do you have access to a server or cloud storage (S3, Azure)? Or would you need to set that up?
+Who creates the orthoimages? Do you/your team have QGIS or GDAL available, or would you need a simpler drag-and-drop solution?
+Budget for tools? Free (GDAL + self-host) vs paid (MapTiler Cloud does everything for ~$25/month)?
+If you can upload the TIF somewhere I can access it (or a smaller test one), I can generate the tiles and show you exactly how the widget would work. Alternatively, I can write you a guide/script for doing it yourself with GDAL.
+
+I currently have a free trial with amazon so I have an s3 bucket to do all the testing. I can use GDAL to make the tiles.
+
+8:19 AM
+
+Orchestrated GDAL tiling workflow and S3 deployment strategy.
+
+
+Perfect. Here's the full workflow:
+
+Step 1: Create Tiles with GDAL
+bash
+# Install GDAL if needed (Windows: OSGeo4W installer, Mac: brew install gdal)
+
+# Create tiles (adjust zoom levels based on your needs)
+gdal2tiles.py -z 12-21 -w none --xyz your_ortho.tif tiles_output/
+Zoom level guide:
+
+12-21 is good for site-level detail
+Lower numbers = zoomed out, higher = zoomed in
+More zoom levels = more tiles = more storage
+This creates a folder structure like tiles_output/15/12345/6789.png
+
+Step 2: Upload to S3
+bash
+# Sync tiles folder to S3
+aws s3 sync tiles_output/ s3://your-bucket-name/sites/site-name/ --acl public-read
+S3 Settings Required:
+
+Bucket Policy (make tiles public):
+json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": "*",
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::your-bucket-name/sites/*"
+  }]
+}
+CORS Configuration (allow browser access):
+json
+[{
+  "AllowedOrigins": ["*"],
+  "AllowedMethods": ["GET"],
+  "AllowedHeaders": ["*"]
+}]
+```
+
+---
+
+## Step 3: Get Your Tile URL
+
+Your tiles will be at:
+```
+https://your-bucket-name.s3.amazonaws.com/sites/site-name/{z}/{x}/{y}.png
+Step 4: Update Widget
+Once you have tiles uploaded, give me:
+
+The S3 tile URL
+The approximate location (or I can check from the GeoTIFF metadata)
+And I'll update the widget to load from your tile layer.
+
+Want me to write a batch script that automates the GDAL + S3 upload process for future sites? That way you can just run one command per new ortho.
+
+Can you go into greater detail on all the steps
+
+8:24 AM
+
+9 steps
+
+Presented 3 files
+
+Synthesized comprehensive guide and automation scripts.
+
+I've created three files for you:
+
+1. TILING_GUIDE.md
+Complete step-by-step guide covering:
+
+Installing GDAL (Windows/Mac/Linux)
+Understanding GeoTIFF metadata
+Creating tiles with gdal2tiles.py
+Setting up S3 bucket with correct permissions
+Uploading tiles
+Troubleshooting common issues
+2. tile_and_upload.bat (Windows)
+3. tile_and_upload.sh (Mac/Linux)
+Automation scripts that do everything in one command. Just edit the config at the top:
+
+bash
+S3_BUCKET=your-bucket-name
+S3_REGION=ap-southeast-2
+Then run:
+
+bash
+# Windows (in OSGeo4W Shell)
+tile_and_upload.bat your_ortho.tif client-site-name
+
+# Mac/Linux
+./tile_and_upload.sh your_ortho.tif client-site-name
+Quick Summary of the Process
+Step	What Happens
+1	GDAL reads your 842MB TIF
+2	Creates thousands of 256x256 PNG tiles at multiple zoom levels
+3	Uploads tiles to S3 folder sites/client-name/
+4	Gives you a URL like https://bucket.s3.region.amazonaws.com/sites/client-name/{z}/{x}/{y}.png
+Once you have tiles uploaded, send me the tile URL and I'll update the widget to load them. Want to try the process with your TIF file now?
+
+Tiling guide
+Document · MD 
+Tile and upload
+BAT 
+Tile and upload
+SH 
+gdal2tiles.py not found
+
+8:44 AM
+
+Diagnosed GDAL installation issue and formulated troubleshooting strategy.
+
+
+
+Are you on Windows? If so, there are a few things to check:
+
+Option 1: Use OSGeo4W Shell (not Command Prompt)
+If you installed GDAL via OSGeo4W:
+
+Open Start Menu
+Search for "OSGeo4W Shell"
+Run commands from there (it sets up the correct paths)
+Option 2: Check if GDAL is installed at all
+bash
+gdalinfo --version
+If this also fails, GDAL isn't installed or isn't in your PATH.
+
+Option 3: Install GDAL via OSGeo4W
+Download: https://trac.osgeo.org/osgeo4w/
+Run installer
+Choose "Express Install"
+Check "GDAL" in the list
+Finish installation
+Open OSGeo4W Shell from Start Menu
+Option 4: Use QGIS Instead (Easier)
+QGIS has a built-in tile generator with a GUI - no command line needed:
+
+Download QGIS: https://qgis.org/download/
+Open QGIS
+Drag your TIF onto the map
+Go to Processing → Toolbox
+Search for "Generate XYZ tiles (Directory)"
+Set your zoom levels (14-21)
+Choose output folder
+Run
+Which approach would you prefer?
+
+Command line with GDAL (more automatable for future sites)
+QGIS GUI (easier one-off, visual feedback)
+QGIS is asking for extent parameter
+
+9:00 AM
+
+Synthesized multiple methods for defining geographic tile boundaries.
+
+
+
+In the extent parameter field, there should be a ... button on the right side. Click it and you'll see options:
+
+"Calculate from Layer" → Select your ortho layer
+"Use Map Canvas Extent"
+"Draw on Canvas"
+Choose "Calculate from Layer" and pick your TIF layer from the dropdown. This automatically uses the full bounds of your ortho image.
+
+If you don't see that button, you can also:
+
+Right-click your TIF layer in the Layers panel
+Click "Zoom to Layer"
+Then in the tile tool, choose "Use Map Canvas Extent"
+Let me know if you get stuck on any other parameters. The key ones are:
+
+Parameter	What to set
+Extent	Calculate from your TIF layer
+Minimum zoom	14
+Maximum zoom	20 or 21
+Tile format	PNG
+Output directory	A folder like C:\tiles\site-name\
+An error occurred (AccessControlListNotSupported) when calling the PutObject operation: The bucket does not allow ACLs
+
+9:21 AM
+
+Diagnosed S3 ACL limitation and weighed modernization strategies.
+
+
+This is a newer S3 default setting. You have two options:
+
+Option A: Remove the ACL flag (Recommended)
+Since you already set up a bucket policy for public access, you don't need the --acl flag. Just run:
+
+bash
+aws s3 sync tiles_folder/ s3://your-bucket-name/sites/site-name/
+The bucket policy handles public access, not per-file ACLs.
+
+Option B: Enable ACLs on the Bucket
+If you prefer using ACLs:
+
+Go to S3 → Your Bucket → Permissions
+Find "Object Ownership"
+Click Edit
+Select "ACLs enabled"
+Choose "Bucket owner preferred"
+Save
+Then the --acl public-read flag will work.
+
+Option A is simpler - just remove --acl public-read from your upload command since your bucket policy already makes files public.
+
+Here's where the tiles should be:
+https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/binduli-north
+
+Update widget code please.
+
+Here's the gdalinfo output:
+Size is 34875, 44934
+Coordinate System is:
+PROJCRS["WGS 84 / UTM zone 51S",
+    BASEGEOGCRS["WGS 84",
+        DATUM["World Geodetic System 1984",
+            ELLIPSOID["WGS 84",6378137,298.257223563,
+                LENGTHUNIT["metre",1]]],
+        PRIMEM["Greenwich",0,
+            ANGLEUNIT["degree",0.0174532925199433]],
+        ID["EPSG",4326]],
+    CONVERSION["UTM zone 51S",
+        METHOD["Transverse Mercator",
+            ID["EPSG",9807]],
+        PARAMETER["Latitude of natural origin",0,
+            ANGLEUNIT["degree",0.0174532925199433],
+            ID["EPSG",8801]],
+        PARAMETER["Longitude of natural origin",123,
+            ANGLEUNIT["degree",0.0174532925199433],
+            ID["EPSG",8802]],
+        PARAMETER["Scale factor at natural origin",0.9996,
+            SCALEUNIT["unity",1],
+            ID["EPSG",8805]],
+        PARAMETER["False easting",500000,
+            LENGTHUNIT["metre",1],
+            ID["EPSG",8806]],
+        PARAMETER["False northing",10000000,
+            LENGTHUNIT["metre",1],
+            ID["EPSG",8807]]],
+    CS[Cartesian,2],
+        AXIS["(E)",east,
+            ORDER[1],
+            LENGTHUNIT["metre",1]],
+        AXIS["(N)",north,
+            ORDER[2],
+            LENGTHUNIT["metre",1]],
+    USAGE[
+        SCOPE["Navigation and medium accuracy spatial referencing."],
+        AREA["Between 120┬░E and 126┬░E, southern hemisphere between 80┬░S and equator, onshore and offshore. Australia. East Timor. Indonesia."],
+        BBOX[-80,120,0,126]],
+    ID["EPSG",32751]]
+Data axis to CRS axis mapping: 1,2
+Origin = (344530.655800941458438,6595088.635094314813614)
+Pixel Size = (0.038999460769528,-0.038999300260522)
+Metadata:
+  AREA_OR_POINT=Area
+Image Structure Metadata:
+  LAYOUT=COG
+  SOURCE_COLOR_SPACE=YCbCr
+  COMPRESSION=YCbCr JPEG
+  INTERLEAVE=PIXEL
+  JPEG_QUALITY=100
+  JPEGTABLESMODE=1
+Corner Coordinates:
+Upper Left  (  344530.656, 6595088.635) (121d22'31.84"E, 30d46' 1.32"S)
+Lower Left  (  344530.656, 6593336.241) (121d22'30.88"E, 30d46'58.22"S)
+Upper Right (  345890.762, 6595088.635) (121d23'22.98"E, 30d46' 1.95"S)
+Lower Right (  345890.762, 6593336.241) (121d23'22.04"E, 30d46'58.86"S)
+Center      (  345210.709, 6594212.438) (121d22'56.93"E, 30d46'30.09"S)
+Band 1 Block=512x512 Type=Byte, ColorInterp=Red
+  Description = red
+  Min=0.000 Max=255.000
+  Overviews: 17437x22467, 8718x11233, 4359x5616, 2179x2808, 1089x1404, 544x702, 272x351
+  Mask Flags: PER_DATASET
+  Overviews of mask band: 17437x22467, 8718x11233, 4359x5616, 2179x2808, 1089x1404, 544x702, 272x351
+  Metadata:
+    STATISTICS_APPROXIMATE=YES
+    STATISTICS_MAXIMUM=255
+    STATISTICS_MEAN=133.57065874398
+    STATISTICS_MINIMUM=0
+    STATISTICS_STDDEV=42.25973216035
+    STATISTICS_VALID_PERCENT=51.12
+Band 2 Block=512x512 Type=Byte, ColorInterp=Green
+  Description = green
+  Min=0.000 Max=255.000
+  Overviews: 17437x22467, 8718x11233, 4359x5616, 2179x2808, 1089x1404, 544x702, 272x351
+  Mask Flags: PER_DATASET
+  Overviews of mask band: 17437x22467, 8718x11233, 4359x5616, 2179x2808, 1089x1404, 544x702, 272x351
+  Metadata:
+    STATISTICS_APPROXIMATE=YES
+    STATISTICS_MAXIMUM=255
+    STATISTICS_MEAN=115.03165659256
+    STATISTICS_MINIMUM=0
+    STATISTICS_STDDEV=31.853702077509
+    STATISTICS_VALID_PERCENT=51.12
+Band 3 Block=512x512 Type=Byte, ColorInterp=Blue
+  Description = blue
+  Min=0.000 Max=255.000
+  Overviews: 17437x22467, 8718x11233, 4359x5616, 2179x2808, 1089x1404, 544x702, 272x351
+  Mask Flags: PER_DATASET
+  Overviews of mask band: 17437x22467, 8718x11233, 4359x5616, 2179x2808, 1089x1404, 544x702, 272x351
+  Metadata:
+    STATISTICS_APPROXIMATE=YES
+    STATISTICS_MAXIMUM=255
+    STATISTICS_MEAN=100.78039135334
+    STATISTICS_MINIMUM=0
+    STATISTICS_STDDEV=30.114378222545
+    STATISTICS_VALID_PERCENT=51.12
+
+Show more
+9:32 AM
+
+Extracted geospatial coordinates and reconfigured widget for S3 tiles.
+
+
+
+
+
+
+
+Got it! The site is near Kalgoorlie, WA. Let me update the widget to use your S3 tiles:
+
+
+20 steps
+
+Presented file
+
+Analyzed geospatial data to update map tile widget code.
+
+Updated! The widget now:
+
+Loads your S3 tiles from https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/binduli-north/{z}/{x}/{y}.png
+Starts on the ortho (not OSM street map)
+Centers on your site near Kalgoorlie (-30.775, 121.3825)
+Zooms to level 17 by default
+Before Testing
+What zoom levels did QGIS generate? Check your S3 bucket - you should see folders like 14/, 15/, 16/, etc.
+
+The config is currently set to:
+
+javascript
+minZoom: 14,
+maxZoom: 21
+If your tiles use different zoom levels, let me know and I'll adjust.
+
+Test It
+Upload the new widget.html to GitHub
+Open your JotForm
+You should see the ortho imagery immediately
+If Tiles Don't Show
+Possible issues:
+
+Wrong zoom levels - Check what folders exist in S3
+TMS vs XYZ - QGIS might have used TMS (inverted Y axis). Let me know if tiles load but are in the wrong place
+File extension - Are your tiles .png or .jpg?
+Let me know how it goes!
+
+Widget
+Code · HTML 
+Use s5cmd for uploading to s3 bucket. How do I handle using different sites and different imagery in one jotform? Can I use multiple instances of one widget that show/hide based on the chosen site?
+
+9:52 AM
+
+Architected s5cmd integration and multi-site widget conditional logic solutions.
+
+
+
+
+Good call on s5cmd - it's way faster for tile uploads. Let me address both questions:
+
+Part 1: s5cmd Upload Scripts
+
+2 steps
+
+Update bash script to use s5cmd
++144
+-129
+tile_and_upload.sh
+
+Architected multi-site configuration strategy with conditional display logic.
+
+
+
+Now let me create the multi-site widget system:
+
+Part 2: Multi-Site Widget Architecture
+
+40 steps
+
+Presented 5 files
+
+Synthesized s5cmd integration with multi-site widget architecture and configuration.
+
+
+Done! Here's what I've created:
+
+Updated Files
+1. Upload Scripts (now using s5cmd)
+tile_and_upload.bat (Windows)
+tile_and_upload.sh (Mac/Linux)
+Just update the bucket name at the top and run:
+
+bash
+tile_and_upload.bat ortho.tif site-name
+2. Multi-Site Widget System
+widget-multisite.html - Reads ?site=site-name from URL
+sites.json - Configuration for all your sites
+How to Handle Multiple Sites in JotForm
+Recommended: Multiple widget instances with conditional show/hide
+
+Register separate widgets for each site:
+widget-multisite.html?site=binduli-north
+widget-multisite.html?site=site-2
+etc.
+Add a dropdown to your form with site names
+Add all widgets to your form
+Use JotForm's Conditional Logic to show/hide:
+Show "Map - Binduli North" widget if dropdown equals "Binduli North"
+Show "Map - Site 2" widget if dropdown equals "Site 2"
+Users select a site → the matching map appears → they draw → form submits with KML.
+
+Adding New Sites
+Tile & upload: tile_and_upload.bat newortho.tif new-site-name
+Add to sites.json:
+json
+"new-site-name": {
+  "name": "New Site",
+  "tileUrl": "https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/new-site-name/{z}/{x}/{y}.png",
+  "center": [LON, LAT],
+  "minZoom": 14,
+  "maxZoom": 21,
+  "defaultZoom": 17
+}
+Register new widget in JotForm with ?site=new-site-name
+Upload widget-multisite.html and sites.json to the same folder on GitHub. Want me to clarify anything about the setup?
+
+Widget multisite
+Code · HTML 
+Sites
+Code · JSON 
+Multisite guide
+Document · MD 
+Tile and upload
+BAT 
+Tile and upload
+SH 
+Can I break down sites by company as well? So company "BMA" has 3 sites: Saraji, Peak Downs and Goonyella. So with the widget, in the jotform if the client selects Saraji the widget should show the tiles for Saraji, but choosing a site from the widget should be limited to just the BMA sites. Alternatively, could choosing the site in the widget be locked to whatever site is chosen in the actual jotform?
+
+10:32 AM
+
+Weighed hierarchical company-site filtering approaches and postMessage implementation.
+18s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Good question! The cleanest approach is locking the widget to JotForm's selection - that way there's one source of truth and no confusion.
+
+Recommended Setup
+JotForm handles the selection:
+
+Company dropdown (BMA, Rio Tinto, etc.)
+Site dropdown (filtered by company using JotForm's conditional logic)
+Widget receives the selection via postMessage - no site selector in the widget itself.
+
+Let me build this:
+
+
+2 steps
+
+Create widget that receives site selection from JotForm dropdown
+widget-jotform-linked.html
+
+Architected hierarchical site-company filtering with widget synchronization options.
+
+
+Now let me create the JavaScript code to add to JotForm that sends the dropdown selection to the widget:
+
+
+10 steps
+
+Presented 4 files
+
+Synthesized hierarchical site filtering and widget synchronization options.
+
+Done! Here's the complete solution for company/site hierarchy:
+
+New Files
+File	Purpose
+widget-jotform-linked.html	Widget that receives site selection from JotForm dropdown
+sites-hierarchical.json	Site config organized by company
+jotform-integration.js	JavaScript to add to JotForm that sends dropdown selection to widget
+MULTISITE_GUIDE.md	Complete setup instructions
+How It Works (Recommended Approach)
+JotForm has:
+
+Company dropdown (BMA, Rio Tinto, etc.)
+Site dropdown (filtered by company using JotForm's conditional logic)
+ONE map widget
+When user selects a site:
+
+Custom JavaScript (from jotform-integration.js) detects the change
+Sends the site ID to the widget via postMessage
+Widget loads the correct tiles and zooms to that site
+The widget is locked to whatever is selected in the form - no site selector in the widget itself.
+
+Quick Setup
+Upload to GitHub:
+widget-jotform-linked.html
+sites-hierarchical.json
+Register ONE widget in JotForm pointing to widget-jotform-linked.html
+Create dropdowns in your form:
+Company dropdown
+Site dropdown (with conditions to filter by company)
+Add JavaScript from jotform-integration.js to JotForm:
+Settings → Form Settings → Inject Custom Code → Before closing body tag
+Update the field IDs and dropdown-to-site mappings
+Adding New Sites
+bash
+# 1. Tile and upload
+tile_and_upload.bat ortho.tif new-site-name
+
+# 2. Add to sites-hierarchical.json
+# 3. Add to JotForm dropdown
+# 4. Add mapping in jotform-integration.js
+The guide has full details. Want me to walk through any part of the setup?
+
+Widget jotform linked
+Code · HTML 
+Sites hierarchical
+Code · JSON 
+Jotform integration
+JS 
+Multisite guide
+Document · MD 
+There's no company selection on JotForm, we have separate forms per company, but multiple sites per company form. I can't add custom js code so will have to have one widget per site. Provide a complete guide, start to finish on how this will work. 
+
+Diagnose issue: My ortho is loading but the center coordinates are going to the default ones in the widget-multisite file, despite me specifying the center coordinates in site.json?
+
+1:04 PM
+
+Diagnosed configuration mismatch and architected simplified setup guide.
+15s
+
+
+
+
+
+
+
+
+
+Let me diagnose the bug first, then create a complete guide.
+
+Diagnosing the Center Coordinates Issue
+
+Check how sites.json is loaded and used in widget-multisite
+Show working file
+
+Diagnosed JSON structure mismatch causing coordinate lookup failure.
+
+
+
+
+
+
+
+
+Found the likely issues:
+
+File not loading - The fetch('sites.json') might be failing (404 or CORS), so it falls back to hardcoded coordinates
+Key mismatch - The ?site= parameter must match the key in sites.json exactly (case-sensitive)
+Let me create a fixed widget and complete guide:
+
+
+6 steps
+
+Presented 2 files
+
+Synthesized technical documentation and debugged coordinate configuration issue.
+
+Here's what I've created:
+
+Bug Diagnosis
+Your center coordinates issue was caused by sites.json not loading. The widget was trying to fetch('sites.json') but either:
+
+The file wasn't in the same folder as the widget
+GitHub was blocking the fetch due to caching/CORS
+The site key didn't match exactly
+Fix: The new widget-final.html has all site configs built directly into the file - no external JSON needed. Much more reliable.
+
+New Simplified System
+Files You Need
+File	What It Does
+widget-final.html	Single file with all sites configured inline
+COMPLETE_SETUP_GUIDE.md	Step-by-step instructions
+How It Works
+One widget file on GitHub with all your sites configured inside it
+One JotForm per company (e.g., BMA Form, Rio Tinto Form)
+Site dropdown on each form
+One registered widget per site (URL includes ?site=site-key)
+JotForm conditional logic shows the correct widget based on dropdown
+Setup Summary
+widget-final.html?site=saraji      → Shows Saraji ortho
+widget-final.html?site=peak-downs  → Shows Peak Downs ortho
+widget-final.html?site=goonyella   → Shows Goonyella ortho
+Each is registered as a separate widget in JotForm, and conditional logic shows/hides based on the dropdown selection.
+
+To Fix Your Current Issue
+Download widget-final.html
+Edit the SITES section (around line 230) - update binduli-north with your correct center coordinates
+Upload to GitHub (replacing your current widget)
+Update your JotForm widget URL to use widget-final.html?site=binduli-north
+The debug panel will show if there are any configuration errors.
+
+Want me to add your specific sites to the config, or do you have questions about any part of the setup?
+
+Widget final
+Code · HTML 
+Complete setup guide
+Document · MD 
+Is there any way you can change widget html to stop it saying "an embedded page at ciaran1211.github.io says clear all features? when I click clear on the widget. I don't want the embedded page bit just the are you sure you want to clear all features?
+
+2:02 PM
+
+Identified browser security limitation, recommended custom modal solution.
+
+
+That's a browser security feature for iframes - you can't change the native confirm() text. But I can replace it with a custom modal dialog that looks cleaner:
+
+
+10 steps
+
+Presented file
+
+Devised custom modal solution to replace browser's native dialog.
+
+
+Done! The widget now uses a custom modal instead of the browser's native confirm() dialog.
+
+What changed:
+
+Clicking "Clear" now shows a styled modal within the widget
+Modal says "Clear All Features?" with a clear message
+Cancel button or clicking outside closes the modal
+Escape key also closes it
+No more "An embedded page at..." browser prefix
+Upload the updated widget-final.html to GitHub and you're set.
+
+Widget final
+Code · HTML 
+
+
+
+
+
+Claude is AI and can make mistakes. Please double-check responses.
+
+
+Widget final · HTML
+Copy
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -161,6 +1616,87 @@
         .ol-zoom { top: auto; bottom: 12px; right: 12px; left: auto; }
         .ol-zoom button { width: 32px; height: 32px; background: white; color: #374151; border-radius: 6px; }
         
+        /* Custom confirm modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+        
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 320px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            transform: scale(0.9);
+            transition: transform 0.2s;
+        }
+        
+        .modal-overlay.show .modal-box {
+            transform: scale(1);
+        }
+        
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        
+        .modal-message {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        .modal-btn {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            transition: background 0.15s;
+        }
+        
+        .modal-btn-cancel {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .modal-btn-cancel:hover {
+            background: #e5e7eb;
+        }
+        
+        .modal-btn-confirm {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .modal-btn-confirm:hover {
+            background: #b91c1c;
+        }
+        
         .debug-panel {
             padding: 10px;
             background: #fef3c7;
@@ -268,6 +1804,18 @@
             </div>
             <span id="coordDisplay">--</span>
         </div>
+        
+        <!-- Custom confirm modal -->
+        <div class="modal-overlay" id="confirmModal">
+            <div class="modal-box">
+                <div class="modal-title">Clear All Features?</div>
+                <div class="modal-message">This will remove all shapes you've drawn. This cannot be undone.</div>
+                <div class="modal-buttons">
+                    <button class="modal-btn modal-btn-cancel" id="modalCancel">Cancel</button>
+                    <button class="modal-btn modal-btn-confirm" id="modalConfirm">Clear All</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -309,7 +1857,7 @@
                     name: 'Saraji',
                     company: 'BMA',
                     tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/saraji/{z}/{x}/{y}.png',
-                    center: [148.29, -22.42],
+                    center: [148.19, -22.42],
                     minZoom: 14,
                     maxZoom: 21,
                     defaultZoom: 17
@@ -527,11 +2075,23 @@
             }
             
             function clearAll() {
-                if (drawSource.getFeatures().length && confirm('Clear all features?')) {
-                    drawSource.clear();
-                    featureHistory = [];
-                    sendDataToJotForm();
-                }
+                if (drawSource.getFeatures().length === 0) return;
+                showConfirmModal();
+            }
+            
+            function doClearAll() {
+                drawSource.clear();
+                featureHistory = [];
+                sendDataToJotForm();
+                updateStatus('ready', 'All features cleared');
+            }
+            
+            function showConfirmModal() {
+                document.getElementById('confirmModal').classList.add('show');
+            }
+            
+            function hideConfirmModal() {
+                document.getElementById('confirmModal').classList.remove('show');
             }
             
             function updateStatus(state, text) {
@@ -645,8 +2205,23 @@
                     btn.addEventListener('click', function() { switchLayer(this.dataset.layer); });
                 });
                 
+                // Modal buttons
+                document.getElementById('modalCancel').addEventListener('click', hideConfirmModal);
+                document.getElementById('modalConfirm').addEventListener('click', function() {
+                    hideConfirmModal();
+                    doClearAll();
+                });
+                
+                // Close modal on overlay click
+                document.getElementById('confirmModal').addEventListener('click', function(e) {
+                    if (e.target === this) hideConfirmModal();
+                });
+                
                 document.addEventListener('keydown', function(e) {
-                    if (e.key === 'Escape') setDrawTool(null);
+                    if (e.key === 'Escape') {
+                        hideConfirmModal();
+                        setDrawTool(null);
+                    }
                     if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undoLast(); }
                 });
             }
@@ -660,3 +2235,4 @@
     </script>
 </body>
 </html>
+Claude
