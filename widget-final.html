@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Map Drawing Widget</title>
     
-    <!-- OpenLayers -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@8.2.0/ol.css">
     <script src="https://cdn.jsdelivr.net/npm/ol@8.2.0/dist/ol.js"></script>
     
@@ -20,6 +19,9 @@
             --pink: #E92F8B;
             --orange: #E76F41;
             --yellow: #FEE980;
+            --white: #ffffff;
+            --shadow-sm: 0 1px 3px rgba(15, 36, 88, 0.08);
+            --shadow-lg: 0 20px 40px rgba(15, 36, 88, 0.25);
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -29,16 +31,45 @@
             background: var(--light-bg);
             color: var(--navy);
             line-height: 1.5;
+            overflow: hidden; /* Prevent scroll bars in iframe */
         }
         
+        /* Layout */
         .widget-container {
             display: flex;
             flex-direction: column;
             gap: 12px;
             padding: 16px;
-            max-width: 100%;
+            height: 100vh; /* Fill iframe */
+            transition: all 0.3s ease;
         }
         
+        /* Fullscreen Override - CSS Only */
+        .widget-container.fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            padding: 0;
+            margin: 0;
+            background: var(--light-bg);
+            border-radius: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .widget-container.fullscreen .map-wrapper {
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .widget-container.fullscreen .toolbar,
+        .widget-container.fullscreen .site-header,
+        .widget-container.fullscreen .status-bar {
+            border-radius: 0;
+            z-index: 10000; /* Keep controls above map */
+        }
+
+        /* Header */
         .site-header {
             display: flex;
             align-items: center;
@@ -46,11 +77,9 @@
             padding: 12px 16px;
             background: var(--navy);
             border-radius: 10px;
-            color: white;
+            color: var(--white);
+            flex-shrink: 0;
         }
-        
-        .site-header h4 { font-size: 14px; font-weight: 600; }
-        .site-header p { font-size: 12px; opacity: 0.85; }
         
         .site-icon {
             width: 40px;
@@ -62,14 +91,16 @@
             justify-content: center;
         }
         
+        /* Toolbar */
         .toolbar {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
             padding: 12px;
-            background: white;
+            background: var(--white);
             border-radius: 10px;
-            box-shadow: 0 1px 3px rgba(15, 36, 88, 0.08);
+            box-shadow: var(--shadow-sm);
+            flex-shrink: 0;
         }
         
         .toolbar-group {
@@ -78,9 +109,9 @@
             padding-right: 12px;
             border-right: 1px solid var(--light-bg);
         }
-        
         .toolbar-group:last-child { border-right: none; padding-right: 0; }
         
+        /* Buttons */
         .tool-btn {
             display: inline-flex;
             align-items: center;
@@ -89,7 +120,6 @@
             padding: 8px 14px;
             font-size: 13px;
             font-weight: 500;
-            font-family: inherit;
             color: var(--navy);
             background: var(--light-bg);
             border: 1px solid transparent;
@@ -99,19 +129,29 @@
         }
         
         .tool-btn:hover { background: #d9e4ef; }
-        .tool-btn.active { background: var(--cyan); color: white; }
+        .tool-btn.active { background: var(--cyan); color: var(--white); }
         .tool-btn.danger { color: var(--orange); }
         .tool-btn.danger:hover { background: #fef3ed; }
         .tool-btn svg { width: 16px; height: 16px; }
         
+        /* Map Area */
         .map-wrapper {
             position: relative;
+            flex: 1; /* Take remaining height */
             border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 1px 3px rgba(15, 36, 88, 0.08), 0 4px 12px rgba(15, 36, 88, 0.05);
+            box-shadow: var(--shadow-sm);
+            min-height: 300px;
         }
         
-        #map { width: 100%; height: 450px; background: #d9e4ef; }
+        #map { width: 100%; height: 100%; background: #d9e4ef; }
+        
+        .map-controls {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 100;
+        }
         
         .map-overlay {
             position: absolute;
@@ -119,42 +159,39 @@
             left: 12px;
             padding: 8px 12px;
             background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(4px);
             border-radius: 6px;
             font-size: 12px;
             color: var(--blue-mid);
-            box-shadow: 0 1px 3px rgba(15, 36, 88, 0.1);
+            pointer-events: none;
         }
-        
-        .feature-count { font-weight: 600; color: var(--cyan); }
         
         .status-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 10px 14px;
-            background: white;
+            background: var(--white);
             border-radius: 8px;
             font-size: 12px;
-            box-shadow: 0 1px 2px rgba(15, 36, 88, 0.05);
+            box-shadow: var(--shadow-sm);
+            flex-shrink: 0;
         }
         
-        .status-indicator { display: flex; align-items: center; gap: 6px; }
-        
         .status-dot {
+            display: inline-block;
             width: 8px;
             height: 8px;
             border-radius: 50%;
             background: var(--blue-mid);
+            margin-right: 6px;
         }
-        
         .status-dot.ready { background: var(--cyan); }
         .status-dot.drawing { background: var(--yellow); animation: pulse 1.5s infinite; }
         
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
         .layer-selector { display: flex; gap: 4px; margin-left: auto; }
-        
         .layer-btn {
             padding: 6px 10px;
             font-size: 11px;
@@ -165,169 +202,42 @@
             cursor: pointer;
             color: var(--navy);
         }
+        .layer-btn.active { background: var(--navy); color: var(--white); }
         
-        .layer-btn:hover { background: #d9e4ef; }
-        .layer-btn.active { background: var(--navy); color: white; border-color: var(--navy); }
-        
-        .ol-zoom { top: auto; bottom: 12px; right: 12px; left: auto; }
-        .ol-zoom button { width: 32px; height: 32px; background: white; color: var(--navy); border-radius: 6px; }
-        
-        /* Fullscreen mode */
-        .widget-container.fullscreen {
-            position: fixed;
-            inset: 0;
-            z-index: 9998;
-            padding: 0;
-            background: var(--light-bg);
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .widget-container.fullscreen .site-header {
-            border-radius: 0;
-        }
-        
-        .widget-container.fullscreen .toolbar {
-            border-radius: 0;
-            margin: 0;
-        }
-        
-        .widget-container.fullscreen .map-wrapper {
-            flex: 1;
-            border-radius: 0;
-            min-height: 0;
-        }
-        
-        .widget-container.fullscreen #map {
-            height: 100% !important;
-        }
-        
-        .widget-container.fullscreen .status-bar {
-            border-radius: 0;
-        }
-        
-        .widget-container.fullscreen .debug-panel {
-            display: none;
-        }
-        
-        .fullscreen-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 36px;
-            height: 36px;
-            background: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            color: var(--navy);
-            box-shadow: 0 1px 3px rgba(15, 36, 88, 0.15);
-            transition: all 0.15s;
-        }
-        
-        .fullscreen-btn:hover {
-            background: var(--light-bg);
-        }
-        
-        .fullscreen-btn svg {
-            width: 18px;
-            height: 18px;
-        }
-        
-        .map-controls {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            display: flex;
-            gap: 8px;
-            z-index: 100;
-        }
-        
-        .exit-fullscreen-btn {
-            display: none;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
-            background: var(--navy);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            font-family: inherit;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(15, 36, 88, 0.3);
-        }
-        
-        .exit-fullscreen-btn:hover {
-            background: #1a3a7a;
-        }
-        
-        .exit-fullscreen-btn svg {
-            width: 16px;
-            height: 16px;
-        }
-        
-        .widget-container.fullscreen .exit-fullscreen-btn {
-            display: inline-flex;
-        }
-        
-        .widget-container.fullscreen .fullscreen-btn {
-            display: none;
-        }
-        
-        /* Custom confirm modal */
+        /* Generic Modal System */
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(15, 36, 88, 0.4);
+            background: rgba(15, 36, 88, 0.6);
+            backdrop-filter: blur(2px);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 9999;
+            z-index: 20000;
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.2s, visibility 0.2s;
         }
         
-        .modal-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
         
         .modal-box {
-            background: white;
+            background: var(--white);
             border-radius: 12px;
             padding: 24px;
-            max-width: 320px;
             width: 90%;
-            box-shadow: 0 20px 40px rgba(15, 36, 88, 0.25);
-            transform: scale(0.9);
-            transition: transform 0.2s;
+            max-width: 340px;
+            box-shadow: var(--shadow-lg);
+            transform: scale(0.95);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         
-        .modal-overlay.show .modal-box {
-            transform: scale(1);
-        }
+        .modal-overlay.show .modal-box { transform: scale(1); }
         
-        .modal-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--navy);
-            margin-bottom: 8px;
-        }
+        .modal-title { font-size: 18px; font-weight: 600; color: var(--navy); margin-bottom: 8px; }
+        .modal-message { font-size: 14px; color: var(--blue-mid); margin-bottom: 24px; line-height: 1.5; }
         
-        .modal-message {
-            font-size: 14px;
-            color: var(--blue-mid);
-            margin-bottom: 20px;
-        }
-        
-        .modal-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-        }
+        .modal-buttons { display: flex; gap: 12px; justify-content: flex-end; }
         
         .modal-btn {
             padding: 10px 20px;
@@ -339,40 +249,36 @@
             transition: background 0.15s;
         }
         
-        .modal-btn-cancel {
-            background: var(--light-bg);
+        .modal-btn.cancel { background: var(--light-bg); color: var(--navy); }
+        .modal-btn.cancel:hover { background: #d9e4ef; }
+        .modal-btn.primary { background: var(--cyan); color: var(--white); }
+        .modal-btn.primary:hover { filter: brightness(1.1); }
+        .modal-btn.danger { background: var(--orange); color: var(--white); }
+        .modal-btn.danger:hover { background: #d4623a; }
+
+        /* Fullscreen Toggle Button Styles */
+        .fs-toggle-btn {
+            background: var(--white);
+            border: none;
+            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
             color: var(--navy);
+            box-shadow: var(--shadow-sm);
         }
+        .fs-toggle-btn:hover { background: var(--light-bg); }
         
-        .modal-btn-cancel:hover {
-            background: #d9e4ef;
-        }
-        
-        .modal-btn-confirm {
-            background: var(--orange);
-            color: white;
-        }
-        
-        .modal-btn-confirm:hover {
-            background: #d4623a;
-        }
-        
-        .debug-panel {
-            padding: 10px;
-            background: #fef9e6;
-            border: 1px solid var(--yellow);
-            border-radius: 8px;
-            font-size: 11px;
-            font-family: monospace;
-            color: var(--navy);
-            display: none;
-        }
-        
+        /* Debug */
+        .debug-panel { display: none; padding: 10px; background: #fef9e6; color: var(--orange); font-family: monospace; font-size: 11px; margin-bottom: 10px; border-radius: 6px;}
         .debug-panel.show { display: block; }
     </style>
 </head>
 <body>
-    <div class="widget-container">
+    <div class="widget-container" id="widgetRoot">
         <div class="site-header">
             <div class="site-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -382,71 +288,46 @@
             </div>
             <div>
                 <h4 id="siteName">Loading...</h4>
-                <p id="siteInfo">Initializing map</p>
+                <p id="siteInfo" style="font-size: 12px; opacity: 0.8;">Initializing map</p>
             </div>
         </div>
         
-        <!-- Debug panel - shows when there's an issue -->
         <div class="debug-panel" id="debugPanel"></div>
         
         <div class="toolbar">
             <div class="toolbar-group">
                 <button class="tool-btn" data-tool="Polygon" title="Draw Polygon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/>
-                    </svg>
-                    Polygon
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/></svg> Polygon
                 </button>
                 <button class="tool-btn" data-tool="Box" title="Draw Rectangle">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    </svg>
-                    Rectangle
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Rectangle
                 </button>
                 <button class="tool-btn" data-tool="Circle" title="Draw Circle">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                    </svg>
-                    Circle
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg> Circle
                 </button>
             </div>
             
             <div class="toolbar-group">
                 <button class="tool-btn" data-tool="LineString" title="Draw Line">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 20L20 4"/>
-                        <circle cx="4" cy="20" r="2" fill="currentColor"/>
-                        <circle cx="20" cy="4" r="2" fill="currentColor"/>
-                    </svg>
-                    Line
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20L20 4"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg> Line
                 </button>
                 <button class="tool-btn" data-tool="Point" title="Place Point">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3" fill="currentColor"/>
-                        <circle cx="12" cy="12" r="8"/>
-                    </svg>
-                    Point
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="8"/></svg> Point
                 </button>
             </div>
             
             <div class="toolbar-group">
                 <button class="tool-btn" id="undoBtn" title="Undo Last">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/>
-                    </svg>
-                    Undo
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/></svg> Undo
                 </button>
                 <button class="tool-btn danger" id="clearBtn" title="Clear All">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    </svg>
-                    Clear
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Clear
                 </button>
             </div>
             
             <div class="layer-selector">
                 <button class="layer-btn" data-layer="osm">Street</button>
-                <button class="layer-btn" data-layer="satellite">Satellite</button>
+                <button class="layer-btn" data-layer="satellite">Sat</button>
                 <button class="layer-btn active" data-layer="ortho" id="orthoBtn">Ortho</button>
             </div>
         </div>
@@ -454,86 +335,58 @@
         <div class="map-wrapper">
             <div id="map"></div>
             <div class="map-controls">
-                <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button class="fs-toggle-btn" id="fullscreenToggle" title="Toggle Fullscreen">
+                    <svg id="icon-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
                         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
                     </svg>
-                </button>
-                <button class="exit-fullscreen-btn" id="exitFullscreenBtn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg id="icon-minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" style="display:none">
                         <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
                     </svg>
-                    Exit Fullscreen
                 </button>
             </div>
             <div class="map-overlay">
-                Features: <span class="feature-count" id="featureCount">0</span>
+                Features: <span style="font-weight:600; color:var(--cyan)" id="featureCount">0</span>
             </div>
         </div>
         
         <div class="status-bar">
-            <div class="status-indicator">
+            <div style="display: flex; align-items: center;">
                 <span class="status-dot ready" id="statusDot"></span>
                 <span id="statusText">Ready</span>
             </div>
-            <span id="coordDisplay">--</span>
+            <span id="coordDisplay" style="font-family: monospace;">--</span>
         </div>
         
-        <!-- Custom confirm modal -->
-        <div class="modal-overlay" id="confirmModal">
+        <div class="modal-overlay" id="genericModal">
             <div class="modal-box">
-                <div class="modal-title">Clear All Features?</div>
-                <div class="modal-message">This will remove all shapes you've drawn. This cannot be undone.</div>
+                <div class="modal-title" id="modalTitle">Title</div>
+                <div class="modal-message" id="modalMessage">Message</div>
                 <div class="modal-buttons">
-                    <button class="modal-btn modal-btn-cancel" id="modalCancel">Cancel</button>
-                    <button class="modal-btn modal-btn-confirm" id="modalConfirm">Clear All</button>
+                    <button class="modal-btn cancel" id="modalCancel">Cancel</button>
+                    <button class="modal-btn primary" id="modalConfirm">Confirm</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // ============================================================
-        // MAP DRAWING WIDGET - SIMPLIFIED VERSION
-        // ============================================================
-        // 
-        // SETUP: For each site, create a separate widget in JotForm with URL:
-        //   widget.html?site=SITE_KEY
-        //
-        // Example: widget.html?site=binduli-north
-        //
-        // The SITE_KEY must match a key in the SITES object below.
-        //
-        // ============================================================
-        
         (function() {
             'use strict';
             
-            // ========================================
-            // SITE CONFIGURATION - EDIT THIS SECTION
-            // ========================================
-            // Add all your sites here. Each key (e.g., 'binduli-north') 
-            // must match the ?site= parameter in the widget URL.
-            
+            // --- CONFIGURATION ---
             const SITES = {
                 'binduli-north': {
                     name: 'Binduli North',
                     company: 'Test Company',
                     tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/binduli-north/{z}/{x}/{y}.png',
                     center: [121.3825, -30.775],
-                    minZoom: 14,
-                    maxZoom: 21,
                     defaultZoom: 18
                 },
-                
-                // BMA Sites - Example
                 'saraji': {
                     name: 'Saraji',
                     company: 'BMA',
                     tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/saraji/{z}/{x}/{y}.png',
                     center: [148.30, -22.42],
-                    minZoom: 14,
-                    maxZoom: 21,
                     defaultZoom: 17
                 },
                 'peak-downs': {
@@ -541,8 +394,6 @@
                     company: 'BMA',
                     tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/peak-downs/{z}/{x}/{y}.png',
                     center: [148.19, -22.26],
-                    minZoom: 14,
-                    maxZoom: 21,
                     defaultZoom: 17
                 },
                 'goonyella': {
@@ -550,428 +401,310 @@
                     company: 'BMA',
                     tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/goonyella/{z}/{x}/{y}.png',
                     center: [148.08, -21.82],
-                    minZoom: 14,
-                    maxZoom: 21,
                     defaultZoom: 17
                 }
-                
-                // Add more sites here...
             };
             
-            // ========================================
-            // END OF CONFIGURATION
-            // ========================================
-            
-            // Get site from URL
-            function getUrlParam(name) {
-                const params = new URLSearchParams(window.location.search);
-                return params.get(name);
-            }
-            
-            const siteKey = getUrlParam('site');
-            const SITE = SITES[siteKey];
-            
-            // Debug helper
-            function debug(msg) {
+            // --- STATE MANAGEMENT ---
+            const State = {
+                map: null,
+                drawSource: null,
+                drawInteraction: null,
+                featureHistory: [],
+                site: null,
+                isFullscreen: false
+            };
+
+            // --- UTILITIES ---
+            function getUrlParam(name) { return new URLSearchParams(window.location.search).get(name); }
+            function debug(msg) { 
+                const el = document.getElementById('debugPanel');
+                if (el) { el.classList.add('show'); el.innerHTML += msg + '<br>'; }
                 console.log('[Widget]', msg);
-                const panel = document.getElementById('debugPanel');
-                panel.innerHTML += msg + '<br>';
             }
-            
-            function showDebug() {
-                document.getElementById('debugPanel').classList.add('show');
-            }
-            
-            // Validate site
-            if (!siteKey) {
-                debug('ERROR: No site specified in URL');
-                debug('URL should be: widget.html?site=your-site-key');
-                debug('Available sites: ' + Object.keys(SITES).join(', '));
-                showDebug();
-            } else if (!SITE) {
-                debug('ERROR: Site "' + siteKey + '" not found in SITES config');
-                debug('Available sites: ' + Object.keys(SITES).join(', '));
-                debug('Check that the site key matches exactly (case-sensitive)');
-                showDebug();
-            } else {
-                debug('Loaded site: ' + SITE.name);
-                debug('Center: [' + SITE.center.join(', ') + ']');
-                debug('Tiles: ' + SITE.tileUrl);
-            }
-            
-            // Update header
-            if (SITE) {
-                document.getElementById('siteName').textContent = SITE.name;
-                document.getElementById('siteInfo').textContent = SITE.company || 'Select a drawing tool to begin';
-            } else {
-                document.getElementById('siteName').textContent = 'Configuration Error';
-                document.getElementById('siteInfo').textContent = 'Check console for details';
-            }
-            
-            // State
-            let map = null;
-            let drawSource = null;
-            let drawInteraction = null;
-            let featureHistory = [];
-            
-            // Layers
-            const osmLayer = new ol.layer.Tile({
-                source: new ol.source.OSM(),
-                visible: false
-            });
-            
-            const satelliteLayer = new ol.layer.Tile({
-                source: new ol.source.XYZ({
-                    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                    maxZoom: 19
-                }),
-                visible: false
-            });
-            
-            let orthoLayer = null;
-            if (SITE && SITE.tileUrl) {
-                orthoLayer = new ol.layer.Tile({
-                    source: new ol.source.XYZ({
-                        url: SITE.tileUrl,
-                        minZoom: SITE.minZoom || 14,
-                        maxZoom: SITE.maxZoom || 21
-                    }),
-                    visible: true
-                });
-            }
-            
-            // Draw style
-            const drawStyle = new ol.style.Style({
-                fill: new ol.style.Fill({ color: 'rgba(10, 186, 239, 0.2)' }),  // cyan with opacity
-                stroke: new ol.style.Stroke({ color: '#0ABAEF', width: 2 }),    // cyan
-                image: new ol.style.Circle({
-                    radius: 6,
-                    fill: new ol.style.Fill({ color: '#0ABAEF' }),
-                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
-                })
-            });
-            
-            // Initialize map
+
+            // --- UI MODAL CLASS ---
+            const Modal = {
+                el: document.getElementById('genericModal'),
+                titleEl: document.getElementById('modalTitle'),
+                msgEl: document.getElementById('modalMessage'),
+                confirmBtn: document.getElementById('modalConfirm'),
+                cancelBtn: document.getElementById('modalCancel'),
+                currentCallback: null,
+
+                show(title, message, confirmText, type, onConfirm) {
+                    this.titleEl.textContent = title;
+                    this.msgEl.textContent = message;
+                    this.confirmBtn.textContent = confirmText || 'Confirm';
+                    this.confirmBtn.className = `modal-btn ${type === 'danger' ? 'danger' : 'primary'}`;
+                    
+                    // Unbind previous listeners
+                    const newConfirm = this.confirmBtn.cloneNode(true);
+                    this.confirmBtn.parentNode.replaceChild(newConfirm, this.confirmBtn);
+                    this.confirmBtn = newConfirm;
+
+                    this.confirmBtn.addEventListener('click', () => {
+                        this.hide();
+                        if (onConfirm) onConfirm();
+                    });
+
+                    this.el.classList.add('show');
+                },
+                hide() {
+                    this.el.classList.remove('show');
+                }
+            };
+
+            // --- MAP LOGIC ---
             function initMap() {
-                drawSource = new ol.source.Vector();
-                
-                const drawLayer = new ol.layer.Vector({
-                    source: drawSource,
-                    style: drawStyle
-                });
-                
-                const layers = [osmLayer, satelliteLayer];
-                if (orthoLayer) layers.push(orthoLayer);
-                layers.push(drawLayer);
-                
-                // Use site center or default
-                const center = SITE ? SITE.center : [134, -25];
-                const zoom = SITE ? (SITE.defaultZoom || 17) : 4;
-                
-                map = new ol.Map({
-                    target: 'map',
-                    layers: layers,
-                    view: new ol.View({
-                        center: ol.proj.fromLonLat(center),
-                        zoom: zoom,
-                        maxZoom: SITE ? SITE.maxZoom : 21
-                    }),
-                    controls: ol.control.defaults.defaults().extend([
-                        new ol.control.ScaleLine()
-                    ])
-                });
-                
-                // Coordinate display
-                map.on('pointermove', function(evt) {
-                    const coords = ol.proj.toLonLat(evt.coordinate);
-                    document.getElementById('coordDisplay').textContent = 
-                        coords[1].toFixed(5) + ', ' + coords[0].toFixed(5);
-                });
-                
-                drawSource.on('change', function() {
-                    document.getElementById('featureCount').textContent = drawSource.getFeatures().length;
-                });
-                
-                // Hide ortho button if no ortho layer
-                if (!orthoLayer) {
-                    document.getElementById('orthoBtn').style.display = 'none';
-                    osmLayer.setVisible(true);
-                    document.querySelector('[data-layer="osm"]').classList.add('active');
-                    document.querySelector('[data-layer="ortho"]').classList.remove('active');
-                }
-            }
-            
-            // Drawing tools
-            function setDrawTool(toolType) {
-                if (drawInteraction) {
-                    map.removeInteraction(drawInteraction);
-                    drawInteraction = null;
-                }
-                
-                document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.tool === toolType);
-                });
-                
-                if (!toolType) {
-                    updateStatus('ready', 'Ready - Select a tool');
+                const siteKey = getUrlParam('site');
+                State.site = SITES[siteKey];
+
+                if (!State.site) {
+                    debug('ERROR: Site key not found or invalid. Use ?site=key');
+                    document.getElementById('siteName').textContent = 'Configuration Error';
                     return;
                 }
-                
-                const options = { source: drawSource, style: drawStyle };
-                
-                if (toolType === 'Box') {
-                    options.type = 'Circle';
-                    options.geometryFunction = ol.interaction.Draw.createBox();
-                } else if (toolType === 'Circle') {
-                    options.type = 'Circle';
-                } else {
-                    options.type = toolType;
-                }
-                
-                drawInteraction = new ol.interaction.Draw(options);
-                
-                drawInteraction.on('drawstart', () => updateStatus('drawing', 'Drawing...'));
-                drawInteraction.on('drawend', (evt) => {
-                    featureHistory.push(evt.feature);
-                    updateStatus('ready', 'Feature added');
-                    sendDataToJotForm();
+
+                // Update UI
+                document.getElementById('siteName').textContent = State.site.name;
+                document.getElementById('siteInfo').textContent = State.site.company;
+
+                // Layers
+                const osm = new ol.layer.Tile({ source: new ol.source.OSM(), visible: false, properties: {name: 'osm'} });
+                const satellite = new ol.layer.Tile({ 
+                    source: new ol.source.XYZ({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZoom: 19 }), 
+                    visible: false,
+                    properties: {name: 'satellite'} 
                 });
                 
-                map.addInteraction(drawInteraction);
-                updateStatus('ready', toolType + ' tool active');
+                const ortho = new ol.layer.Tile({
+                    source: new ol.source.XYZ({ url: State.site.tileUrl, minZoom: 14, maxZoom: 21 }),
+                    visible: true,
+                    properties: {name: 'ortho'}
+                });
+
+                // Vector Layer
+                State.drawSource = new ol.source.Vector();
+                const drawLayer = new ol.layer.Vector({
+                    source: State.drawSource,
+                    style: new ol.style.Style({
+                        fill: new ol.style.Fill({ color: 'rgba(10, 186, 239, 0.2)' }),
+                        stroke: new ol.style.Stroke({ color: '#0ABAEF', width: 2 }),
+                        image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color: '#0ABAEF' }), stroke: new ol.style.Stroke({ color: '#fff', width: 2 }) })
+                    })
+                });
+
+                State.map = new ol.Map({
+                    target: 'map',
+                    layers: [osm, satellite, ortho, drawLayer],
+                    view: new ol.View({
+                        center: ol.proj.fromLonLat(State.site.center),
+                        zoom: State.site.defaultZoom,
+                        maxZoom: 21
+                    }),
+                    controls: ol.control.defaults.defaults({ zoom: false }).extend([new ol.control.ScaleLine()]) // Custom zoom handling if needed
+                });
+
+                // Listeners
+                State.map.on('pointermove', evt => {
+                    const coords = ol.proj.toLonLat(evt.coordinate);
+                    document.getElementById('coordDisplay').textContent = `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`;
+                });
+
+                State.drawSource.on('change', () => {
+                    document.getElementById('featureCount').textContent = State.drawSource.getFeatures().length;
+                });
             }
-            
-            function undoLast() {
-                if (featureHistory.length > 0) {
-                    drawSource.removeFeature(featureHistory.pop());
-                    sendDataToJotForm();
+
+            // --- DRAWING TOOLS ---
+            function setTool(toolType) {
+                if (State.drawInteraction) State.map.removeInteraction(State.drawInteraction);
+                
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                
+                if (!toolType) {
+                    setStatus('ready', 'Ready');
+                    return;
                 }
+
+                document.querySelector(`[data-tool="${toolType}"]`).classList.add('active');
+                
+                const geometryFunction = toolType === 'Box' ? ol.interaction.Draw.createBox() : undefined;
+                const type = (toolType === 'Box' || toolType === 'Circle') ? 'Circle' : toolType;
+
+                State.drawInteraction = new ol.interaction.Draw({
+                    source: State.drawSource,
+                    type: type,
+                    geometryFunction: geometryFunction
+                });
+
+                State.drawInteraction.on('drawstart', () => setStatus('drawing', 'Drawing...'));
+                State.drawInteraction.on('drawend', (e) => {
+                    State.featureHistory.push(e.feature);
+                    setStatus('ready', 'Feature added');
+                    sendToJotForm();
+                });
+
+                State.map.addInteraction(State.drawInteraction);
+                setStatus('ready', `${toolType} active`);
             }
-            
-            function clearAll() {
-                if (drawSource.getFeatures().length === 0) return;
-                showConfirmModal();
-            }
-            
-            function doClearAll() {
-                drawSource.clear();
-                featureHistory = [];
-                sendDataToJotForm();
-                updateStatus('ready', 'All features cleared');
-            }
-            
-            function showConfirmModal() {
-                document.getElementById('confirmModal').classList.add('show');
-            }
-            
-            function hideConfirmModal() {
-                document.getElementById('confirmModal').classList.remove('show');
-            }
-            
-            function updateStatus(state, text) {
-                document.getElementById('statusDot').className = 'status-dot ' + state;
+
+            function setStatus(status, text) {
+                const dot = document.getElementById('statusDot');
+                dot.className = `status-dot ${status}`;
                 document.getElementById('statusText').textContent = text;
             }
-            
-            // Layer switching
-            function switchLayer(type) {
-                document.querySelectorAll('.layer-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.layer === type);
+
+            // --- ACTIONS ---
+            function switchLayer(layerName) {
+                document.querySelectorAll('.layer-btn').forEach(b => {
+                    b.classList.toggle('active', b.dataset.layer === layerName);
                 });
                 
-                osmLayer.setVisible(type === 'osm');
-                satelliteLayer.setVisible(type === 'satellite');
-                if (orthoLayer) orthoLayer.setVisible(type === 'ortho');
+                State.map.getLayers().forEach(lyr => {
+                    if (lyr.get('name')) lyr.setVisible(lyr.get('name') === layerName);
+                });
+            }
+
+            function clearFeatures() {
+                if (State.drawSource.getFeatures().length === 0) return;
                 
-                if (type === 'ortho' && SITE) {
-                    map.getView().animate({
-                        center: ol.proj.fromLonLat(SITE.center),
-                        zoom: SITE.defaultZoom || 17,
-                        duration: 500
-                    });
+                // Use Generic Modal for Clear Confirmation
+                Modal.show(
+                    'Clear All Features?', 
+                    'This will remove all shapes you have drawn. This action cannot be undone.',
+                    'Clear All',
+                    'danger',
+                    () => {
+                        State.drawSource.clear();
+                        State.featureHistory = [];
+                        sendToJotForm();
+                        setStatus('ready', 'Canvas cleared');
+                    }
+                );
+            }
+
+            // --- FULLSCREEN LOGIC (CUSTOM) ---
+            function toggleFullscreen() {
+                const container = document.getElementById('widgetRoot');
+                const btnIconMax = document.getElementById('icon-maximize');
+                const btnIconMin = document.getElementById('icon-minimize');
+
+                if (!State.isFullscreen) {
+                    // Trigger Custom Modal BEFORE entering fullscreen
+                    Modal.show(
+                        'Enter Fullscreen Mode?',
+                        'This will expand the map to fill the available window area for easier drawing.',
+                        'Enter Fullscreen',
+                        'primary',
+                        () => {
+                            // EXECUTE CSS FULLSCREEN
+                            State.isFullscreen = true;
+                            container.classList.add('fullscreen');
+                            btnIconMax.style.display = 'none';
+                            btnIconMin.style.display = 'block';
+                            document.getElementById('fullscreenToggle').title = "Exit Fullscreen";
+                            
+                            // Force map resize after transition
+                            setTimeout(() => State.map.updateSize(), 300);
+                        }
+                    );
+                } else {
+                    // Exit immediately without confirmation
+                    State.isFullscreen = false;
+                    container.classList.remove('fullscreen');
+                    btnIconMax.style.display = 'block';
+                    btnIconMin.style.display = 'none';
+                    document.getElementById('fullscreenToggle').title = "Toggle Fullscreen";
+                    setTimeout(() => State.map.updateSize(), 300);
                 }
             }
-            
-            // KML generation
-            function generateKML() {
-                const features = drawSource.getFeatures();
-                if (!features.length) return '';
-                
-                let kml = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n';
-                kml += '<name>' + (SITE ? SITE.name : 'Map Drawing') + '</name>\n';
-                kml += '<Style id="s"><LineStyle><color>ffEFBA0A</color><width>2</width></LineStyle><PolyStyle><color>33EFBA0A</color></PolyStyle></Style>\n';
-                
-                features.forEach((f, i) => {
-                    const clone = f.clone();
-                    let geom = clone.getGeometry();
-                    
-                    if (geom.getType() === 'Circle') {
-                        geom = ol.geom.Polygon.fromCircle(geom, 64);
-                    }
-                    geom.transform('EPSG:3857', 'EPSG:4326');
-                    
-                    kml += '<Placemark><name>Feature ' + (i+1) + '</name><styleUrl>#s</styleUrl>\n';
-                    
-                    const type = geom.getType();
-                    if (type === 'Point') {
-                        const c = geom.getCoordinates();
-                        kml += '<Point><coordinates>' + c[0] + ',' + c[1] + ',0</coordinates></Point>\n';
-                    } else if (type === 'LineString') {
-                        kml += '<LineString><coordinates>' + geom.getCoordinates().map(c => c[0]+','+c[1]+',0').join(' ') + '</coordinates></LineString>\n';
-                    } else if (type === 'Polygon') {
-                        kml += '<Polygon><outerBoundaryIs><LinearRing><coordinates>' + geom.getCoordinates()[0].map(c => c[0]+','+c[1]+',0').join(' ') + '</coordinates></LinearRing></outerBoundaryIs></Polygon>\n';
-                    }
-                    
-                    kml += '</Placemark>\n';
-                });
-                
-                kml += '</Document>\n</kml>';
-                return kml;
-            }
-            
-            // JotForm integration
+
+            // --- JOTFORM INTEGRATION ---
             const qid = getUrlParam('qid');
             const inJotForm = (window.self !== window.top) && qid;
-            
-            function sendDataToJotForm() {
-                if (!inJotForm) return;
-                window.parent.postMessage(JSON.stringify({
-                    type: 'data',
-                    qid: qid,
-                    value: generateKML(),
-                    valid: true
-                }), '*');
-            }
-            
-            function initJotForm() {
-                if (!inJotForm) return;
+
+            function generateKML() {
+                const features = State.drawSource.getFeatures();
+                if (!features.length) return '';
                 
-                window.parent.postMessage(JSON.stringify({ type: 'frameReady', qid: qid }), '*');
-                sendDataToJotForm();
-                
-                window.addEventListener('message', function(e) {
-                    try {
-                        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-                        if (data.type === 'submit') {
-                            window.parent.postMessage(JSON.stringify({
-                                type: 'submit',
-                                qid: qid,
-                                value: generateKML(),
-                                valid: true
-                            }), '*');
-                        }
-                    } catch (err) {}
+                const format = new ol.format.KML({
+                    extractStyles: false,
+                    writeStyles: true
                 });
-            }
-            
-            // Fullscreen toggle - uses browser Fullscreen API when available
-            function toggleFullscreen(enable) {
-                const container = document.querySelector('.widget-container');
                 
-                if (enable) {
-                    // Try browser Fullscreen API first (works if iframe allows it)
-                    if (container.requestFullscreen) {
-                        container.requestFullscreen();
-                    } else if (container.webkitRequestFullscreen) {
-                        container.webkitRequestFullscreen();
-                    } else if (container.msRequestFullscreen) {
-                        container.msRequestFullscreen();
-                    } else {
-                        // Fallback to CSS fullscreen within iframe
-                        container.classList.add('fullscreen');
-                        document.body.style.overflow = 'hidden';
-                    }
-                } else {
-                    if (document.fullscreenElement || document.webkitFullscreenElement) {
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen();
-                        } else if (document.webkitExitFullscreen) {
-                            document.webkitExitFullscreen();
-                        }
-                    } else {
-                        container.classList.remove('fullscreen');
-                        document.body.style.overflow = '';
-                    }
-                }
-                
-                // OpenLayers needs to update its size after container change
-                setTimeout(() => {
-                    if (map) map.updateSize();
-                }, 100);
+                // Clone features to transform projection for KML (EPSG:4326)
+                const featuresClone = features.map(f => {
+                    const clone = f.clone();
+                    clone.getGeometry().transform('EPSG:3857', 'EPSG:4326');
+                    // Style override for KML
+                    clone.setStyle(new ol.style.Style({
+                        fill: new ol.style.Fill({ color: [239, 186, 10, 0.3] }),
+                        stroke: new ol.style.Stroke({ color: [239, 186, 10, 1], width: 2 })
+                    }));
+                    return clone;
+                });
+
+                return format.writeFeatures(featuresClone);
             }
-            
-            function isFullscreen() {
-                return document.fullscreenElement || 
-                       document.webkitFullscreenElement || 
-                       document.querySelector('.widget-container').classList.contains('fullscreen');
+
+            function sendToJotForm() {
+                if (!inJotForm) return;
+                const kml = generateKML();
+                window.parent.postMessage(JSON.stringify({ type: 'data', qid: qid, value: kml, valid: true }), '*');
             }
-            
-            // Listen for fullscreen changes (user pressing Escape in browser fullscreen)
-            document.addEventListener('fullscreenchange', handleFullscreenChange);
-            document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-            
-            function handleFullscreenChange() {
-                const container = document.querySelector('.widget-container');
-                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                    container.classList.remove('fullscreen');
-                    document.body.style.overflow = '';
-                } else {
-                    container.classList.add('fullscreen');
-                }
-                setTimeout(() => {
-                    if (map) map.updateSize();
-                }, 100);
-            }
-            
-            // Event listeners
-            function initEvents() {
+
+            // --- INITIALIZATION ---
+            function init() {
+                initMap();
+
+                // Tool Buttons
                 document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        setDrawTool(this.classList.contains('active') ? null : this.dataset.tool);
+                    btn.addEventListener('click', () => {
+                        setTool(btn.classList.contains('active') ? null : btn.dataset.tool);
                     });
                 });
-                
-                document.getElementById('undoBtn').addEventListener('click', undoLast);
-                document.getElementById('clearBtn').addEventListener('click', clearAll);
-                
-                document.querySelectorAll('.layer-btn').forEach(btn => {
-                    btn.addEventListener('click', function() { switchLayer(this.dataset.layer); });
-                });
-                
-                // Fullscreen buttons
-                document.getElementById('fullscreenBtn').addEventListener('click', () => toggleFullscreen(true));
-                document.getElementById('exitFullscreenBtn').addEventListener('click', () => toggleFullscreen(false));
-                
-                // Modal buttons
-                document.getElementById('modalCancel').addEventListener('click', hideConfirmModal);
-                document.getElementById('modalConfirm').addEventListener('click', function() {
-                    hideConfirmModal();
-                    doClearAll();
-                });
-                
-                // Close modal on overlay click
-                document.getElementById('confirmModal').addEventListener('click', function(e) {
-                    if (e.target === this) hideConfirmModal();
-                });
-                
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'Escape') {
-                        if (isFullscreen()) {
-                            toggleFullscreen(false);
-                        } else {
-                            hideConfirmModal();
-                            setDrawTool(null);
-                        }
+
+                // Action Buttons
+                document.getElementById('undoBtn').addEventListener('click', () => {
+                    if (State.featureHistory.length) {
+                        State.drawSource.removeFeature(State.featureHistory.pop());
+                        sendToJotForm();
                     }
-                    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undoLast(); }
                 });
+                document.getElementById('clearBtn').addEventListener('click', clearFeatures);
+                
+                // Layer Buttons
+                document.querySelectorAll('.layer-btn').forEach(btn => {
+                    btn.addEventListener('click', () => switchLayer(btn.dataset.layer));
+                });
+
+                // Fullscreen
+                document.getElementById('fullscreenToggle').addEventListener('click', toggleFullscreen);
+
+                // Modal Cancel
+                document.getElementById('modalCancel').addEventListener('click', () => Modal.hide());
+                document.getElementById('genericModal').addEventListener('click', (e) => {
+                    if(e.target.id === 'genericModal') Modal.hide();
+                });
+
+                // Window Resize (Debounced)
+                let resizeTimer;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => State.map && State.map.updateSize(), 100);
+                });
+
+                // JotForm Init
+                if (inJotForm) {
+                    window.parent.postMessage(JSON.stringify({ type: 'frameReady', qid: qid }), '*');
+                }
             }
-            
-            // Initialize
-            initMap();
-            initEvents();
-            initJotForm();
-            
+
+            // Start
+            init();
+
         })();
     </script>
 </body>
