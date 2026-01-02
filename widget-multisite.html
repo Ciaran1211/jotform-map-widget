@@ -442,7 +442,7 @@
                     name: selectedSite || 'Default',
                     tileUrl: selectedSite ? 
                         `${S3_BASE_URL}/sites/${selectedSite}/{z}/{x}/{y}.png` : null,
-                    center: [121.3825, -30.775],  // Default center
+                    center: [148.23,-22.31],  // Default center
                     minZoom: 14,
                     maxZoom: 21,
                     defaultZoom: 17
@@ -451,7 +451,7 @@
             
             // Configuration
             const CONFIG = {
-                defaultCenter: SITE_CONFIG.center || [148.23,-22.31],
+                defaultCenter: SITE_CONFIG.center || [0,0],
                 defaultZoom: SITE_CONFIG.defaultZoom || 17,
                 maxZoom: SITE_CONFIG.maxZoom || 21,
                 drawStyle: {
