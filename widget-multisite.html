@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Region Drawing Widget - Multi-Site</title>
+    
+    <!-- OpenLayers -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@8.2.0/ol.css">
+    <script src="https://cdn.jsdelivr.net/npm/ol@8.2.0/dist/ol.js"></script>
+    
+    <!-- JotForm Widget API - using postMessage directly (no external script needed) -->
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8f9fb;
+            color: #1a1f36;
+            line-height: 1.5;
+        }
+        
+        .widget-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            max-width: 100%;
+        }
+        
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 12px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+        }
+        
+        .toolbar-group {
+            display: flex;
+            gap: 4px;
+            padding-right: 12px;
+            border-right: 1px solid #e5e7eb;
+        }
+        
+        .toolbar-group:last-child {
+            border-right: none;
+            padding-right: 0;
+        }
+        
+        .tool-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: inherit;
+            color: #374151;
+            background: #f3f4f6;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .tool-btn:hover {
+            background: #e5e7eb;
+        }
+        
+        .tool-btn.active {
+            background: #2563eb;
+            color: white;
+            box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3);
+        }
+        
+        .tool-btn.danger {
+            color: #dc2626;
+        }
+        
+        .tool-btn.danger:hover {
+            background: #fef2f2;
+        }
+        
+        .tool-btn.primary {
+            background: #059669;
+            color: white;
+        }
+        
+        .tool-btn.primary:hover {
+            background: #047857;
+        }
+        
+        .tool-btn svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+        
+        .map-wrapper {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        #map {
+            width: 100%;
+            height: 400px;
+            background: #e8ecf1;
+        }
+        
+        .map-overlay {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(8px);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #6b7280;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .feature-count {
+            font-weight: 600;
+            color: #2563eb;
+        }
+        
+        .instructions {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+            border-radius: 8px;
+            border-left: 3px solid #2563eb;
+        }
+        
+        .instructions h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 4px;
+        }
+        
+        .instructions p {
+            font-size: 12px;
+            color: #4b5563;
+        }
+        
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: white;
+            border-radius: 8px;
+            font-size: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d1d5db;
+        }
+        
+        .status-dot.ready {
+            background: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+        
+        .status-dot.drawing {
+            background: #f59e0b;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .kml-preview {
+            display: none;
+            margin-top: 8px;
+            padding: 12px;
+            background: #1e293b;
+            border-radius: 8px;
+            max-height: 150px;
+            overflow: auto;
+        }
+        
+        .kml-preview.visible {
+            display: block;
+        }
+        
+        .kml-preview pre {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
+            color: #94a3b8;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        /* OpenLayers overrides */
+        .ol-control button {
+            font-family: 'DM Sans', sans-serif;
+        }
+        
+        .ol-zoom {
+            top: auto;
+            bottom: 12px;
+            right: 12px;
+            left: auto;
+        }
+        
+        .ol-zoom button {
+            width: 32px;
+            height: 32px;
+            background: white;
+            color: #374151;
+            border-radius: 6px;
+            font-size: 18px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .ol-zoom button:hover {
+            background: #f3f4f6;
+        }
+        
+        .ol-attribution {
+            font-size: 10px;
+            background: rgba(255,255,255,0.8);
+        }
+        
+        /* Custom tooltip for drawing */
+        .ol-tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.75);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        
+        /* Base layer selector */
+        .layer-selector {
+            display: flex;
+            gap: 4px;
+            margin-left: auto;
+        }
+        
+        .layer-btn {
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 500;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .layer-btn:hover {
+            background: #f3f4f6;
+        }
+        
+        .layer-btn.active {
+            background: #1e293b;
+            color: white;
+            border-color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <div class="widget-container">
+        <div class="instructions">
+            <h4>📍 <span id="siteName">Draw Regions on the Map</span></h4>
+            <p>Select a drawing tool below, then click on the map to draw. Double-click to finish polygons and lines.</p>
+        </div>
+        
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <button class="tool-btn" data-tool="Polygon" title="Draw Polygon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/>
+                    </svg>
+                    Polygon
+                </button>
+                <button class="tool-btn" data-tool="Box" title="Draw Rectangle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    </svg>
+                    Rectangle
+                </button>
+                <button class="tool-btn" data-tool="Circle" title="Draw Circle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                    </svg>
+                    Circle
+                </button>
+            </div>
+            
+            <div class="toolbar-group">
+                <button class="tool-btn" data-tool="LineString" title="Draw Line">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 20L20 4"/>
+                        <circle cx="4" cy="20" r="2" fill="currentColor"/>
+                        <circle cx="20" cy="4" r="2" fill="currentColor"/>
+                    </svg>
+                    Line
+                </button>
+                <button class="tool-btn" data-tool="Point" title="Place Point">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                        <circle cx="12" cy="12" r="8"/>
+                    </svg>
+                    Point
+                </button>
+            </div>
+            
+            <div class="toolbar-group">
+                <button class="tool-btn" id="undoBtn" title="Undo Last">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 7v6h6"/>
+                        <path d="M3 13a9 9 0 1 0 3-7.7L3 7"/>
+                    </svg>
+                    Undo
+                </button>
+                <button class="tool-btn danger" id="clearBtn" title="Clear All">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    </svg>
+                    Clear
+                </button>
+            </div>
+            
+            <div class="toolbar-group">
+                <button class="tool-btn primary" id="exportBtn" title="Export KML">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export KML
+                </button>
+            </div>
+            
+            <div class="layer-selector">
+                <button class="layer-btn active" data-layer="osm">Street</button>
+                <button class="layer-btn" data-layer="satellite">Satellite</button>
+                <button class="layer-btn" data-layer="ortho" id="orthoBtn">Ortho</button>
+            </div>
+        </div>
+        
+        <div class="map-wrapper">
+            <div id="map"></div>
+            <div class="map-overlay">
+                Features drawn: <span class="feature-count" id="featureCount">0</span>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-indicator">
+                <span class="status-dot ready" id="statusDot"></span>
+                <span id="statusText">Ready - Select a tool to begin</span>
+            </div>
+            <span id="coordDisplay">--</span>
+        </div>
+        
+        <div class="kml-preview" id="kmlPreview">
+            <pre id="kmlContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // JotForm Custom Widget - OpenLayers KML Drawing
+        // ============================================
+        
+        (async function() {
+            'use strict';
+            
+            // ==============================================
+            // MULTI-SITE CONFIGURATION
+            // ==============================================
+            // Sites are loaded from sites.json
+            // Pass ?site=site-name in URL to select a site
+            // ==============================================
+            
+            const S3_BASE_URL = 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com';
+            
+            // Get site from URL parameter
+            function getUrlParam(name) {
+                const params = new URLSearchParams(window.location.search);
+                return params.get(name);
+            }
+            
+            const selectedSite = getUrlParam('site');
+            console.log('Selected site:', selectedSite);
+            
+            // Load sites configuration
+            let sitesConfig = {};
+            let SITE_CONFIG = null;
+            
+            try {
+                const response = await fetch('sites.json');
+                if (response.ok) {
+                    sitesConfig = await response.json();
+                    console.log('Loaded sites config:', Object.keys(sitesConfig));
+                    
+                    if (selectedSite && sitesConfig[selectedSite]) {
+                        SITE_CONFIG = sitesConfig[selectedSite];
+                        console.log('Using site config:', SITE_CONFIG);
+                    }
+                }
+            } catch (e) {
+                console.log('Could not load sites.json, using fallback config');
+            }
+            
+            // Fallback config if no site specified or sites.json not found
+            if (!SITE_CONFIG) {
+                SITE_CONFIG = {
+                    name: selectedSite || 'Default',
+                    tileUrl: selectedSite ? 
+                        `${S3_BASE_URL}/sites/${selectedSite}/{z}/{x}/{y}.png` : null,
+                    center: [121.3825, -30.775],  // Default center
+                    minZoom: 14,
+                    maxZoom: 21,
+                    defaultZoom: 17
+                };
+            }
+            
+            // Configuration
+            const CONFIG = {
+                defaultCenter: SITE_CONFIG.center || [0, 0],
+                defaultZoom: SITE_CONFIG.defaultZoom || 17,
+                maxZoom: SITE_CONFIG.maxZoom || 21,
+                drawStyle: {
+                    fillColor: 'rgba(37, 99, 235, 0.2)',
+                    strokeColor: '#2563eb',
+                    strokeWidth: 2,
+                    pointRadius: 6
+                }
+            };
+            
+            // State
+            let map = null;
+            let drawSource = null;
+            let drawInteraction = null;
+            let currentTool = null;
+            let featureHistory = [];
+            
+            // Base layers
+            const osmLayer = new ol.layer.Tile({
+                source: new ol.source.OSM(),
+                visible: true
+            });
+            
+            const satelliteLayer = new ol.layer.Tile({
+                source: new ol.source.XYZ({
+                    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    maxZoom: 19
+                }),
+                visible: false
+            });
+            
+            // Ortho tile layer (XYZ tiles from S3) - created dynamically based on site
+            let orthoLayer = null;
+            if (SITE_CONFIG.tileUrl) {
+                orthoLayer = new ol.layer.Tile({
+                    source: new ol.source.XYZ({
+                        url: SITE_CONFIG.tileUrl,
+                        minZoom: SITE_CONFIG.minZoom || 14,
+                        maxZoom: SITE_CONFIG.maxZoom || 21
+                    }),
+                    visible: false
+                });
+                console.log('Created ortho layer for:', SITE_CONFIG.tileUrl);
+            }
+            
+            // Drawing style
+            const drawStyle = new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: CONFIG.drawStyle.fillColor
+                }),
+                stroke: new ol.style.Stroke({
+                    color: CONFIG.drawStyle.strokeColor,
+                    width: CONFIG.drawStyle.strokeWidth
+                }),
+                image: new ol.style.Circle({
+                    radius: CONFIG.drawStyle.pointRadius,
+                    fill: new ol.style.Fill({ color: CONFIG.drawStyle.strokeColor }),
+                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
+                })
+            });
+            
+            // Initialize map
+            function initMap() {
+                drawSource = new ol.source.Vector();
+                
+                const drawLayer = new ol.layer.Vector({
+                    source: drawSource,
+                    style: drawStyle
+                });
+                
+                // Build layers array
+                const layers = [osmLayer, satelliteLayer];
+                if (orthoLayer) {
+                    layers.push(orthoLayer);
+                }
+                layers.push(drawLayer);
+                
+                // Determine initial view - use ortho center if configured
+                let initialCenter = CONFIG.defaultCenter;
+                let initialZoom = CONFIG.defaultZoom;
+                
+                if (SITE_CONFIG.tileUrl && SITE_CONFIG.center) {
+                    initialCenter = SITE_CONFIG.center;
+                    initialZoom = SITE_CONFIG.defaultZoom || 17;
+                }
+                
+                map = new ol.Map({
+                    target: 'map',
+                    layers: layers,
+                    view: new ol.View({
+                        center: ol.proj.fromLonLat(initialCenter),
+                        zoom: initialZoom,
+                        maxZoom: SITE_CONFIG.maxZoom || CONFIG.maxZoom
+                    }),
+                    controls: ol.control.defaults.defaults().extend([
+                        new ol.control.ScaleLine()
+                    ])
+                });
+                
+                // If ortho is configured, show it by default and update layer buttons
+                if (orthoLayer && SITE_CONFIG.tileUrl) {
+                    osmLayer.setVisible(false);
+                    orthoLayer.setVisible(true);
+                    
+                    // Update button states
+                    setTimeout(function() {
+                        document.querySelectorAll('.layer-btn').forEach(btn => {
+                            btn.classList.toggle('active', btn.dataset.layer === 'ortho');
+                        });
+                    }, 100);
+                }
+                
+                // Track mouse position
+                map.on('pointermove', function(evt) {
+                    const coords = ol.proj.toLonLat(evt.coordinate);
+                    document.getElementById('coordDisplay').textContent = 
+                        `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`;
+                });
+                
+                // Update feature count when source changes
+                drawSource.on('change', updateFeatureCount);
+                
+                // Only use geolocation if no ortho is configured
+                if (!SITE_CONFIG.tileUrl && navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(pos) {
+                        const coords = [pos.coords.longitude, pos.coords.latitude];
+                        map.getView().animate({
+                            center: ol.proj.fromLonLat(coords),
+                            zoom: 14,
+                            duration: 1000
+                        });
+                    }, function() {
+                        // Geolocation failed, stay at default
+                    });
+                }
+            }
+            
+            // Set active drawing tool
+            function setDrawTool(toolType) {
+                // Remove existing interaction
+                if (drawInteraction) {
+                    map.removeInteraction(drawInteraction);
+                    drawInteraction = null;
+                }
+                
+                // Update UI
+                document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.tool === toolType);
+                });
+                
+                if (!toolType) {
+                    updateStatus('ready', 'Ready - Select a tool to begin');
+                    currentTool = null;
+                    return;
+                }
+                
+                currentTool = toolType;
+                
+                // Create draw interaction
+                const drawOptions = {
+                    source: drawSource,
+                    style: drawStyle
+                };
+                
+                if (toolType === 'Box') {
+                    drawOptions.type = 'Circle';
+                    drawOptions.geometryFunction = ol.interaction.Draw.createBox();
+                } else if (toolType === 'Circle') {
+                    drawOptions.type = 'Circle';
+                } else {
+                    drawOptions.type = toolType;
+                }
+                
+                drawInteraction = new ol.interaction.Draw(drawOptions);
+                
+                drawInteraction.on('drawstart', function() {
+                    updateStatus('drawing', `Drawing ${toolType}...`);
+                });
+                
+                drawInteraction.on('drawend', function(evt) {
+                    featureHistory.push(evt.feature);
+                    updateStatus('ready', `${toolType} added - Draw more or export`);
+                    sendDataToJotForm();
+                });
+                
+                map.addInteraction(drawInteraction);
+                updateStatus('ready', `${toolType} tool active - Click map to draw`);
+            }
+            
+            // Update status indicator
+            function updateStatus(state, text) {
+                const dot = document.getElementById('statusDot');
+                const textEl = document.getElementById('statusText');
+                
+                dot.className = 'status-dot ' + state;
+                textEl.textContent = text;
+            }
+            
+            // Update feature count
+            function updateFeatureCount() {
+                const count = drawSource.getFeatures().length;
+                document.getElementById('featureCount').textContent = count;
+            }
+            
+            // Undo last feature
+            function undoLast() {
+                if (featureHistory.length > 0) {
+                    const lastFeature = featureHistory.pop();
+                    drawSource.removeFeature(lastFeature);
+                    sendDataToJotForm();
+                    updateStatus('ready', 'Last feature removed');
+                }
+            }
+            
+            // Clear all features
+            function clearAll() {
+                if (drawSource.getFeatures().length === 0) return;
+                
+                if (confirm('Are you sure you want to clear all drawn features?')) {
+                    drawSource.clear();
+                    featureHistory = [];
+                    sendDataToJotForm();
+                    updateStatus('ready', 'All features cleared');
+                }
+            }
+            
+            // Switch base layer
+            function switchLayer(layerType) {
+                document.querySelectorAll('.layer-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.layer === layerType);
+                });
+                
+                osmLayer.setVisible(layerType === 'osm');
+                satelliteLayer.setVisible(layerType === 'satellite');
+                
+                if (orthoLayer) {
+                    orthoLayer.setVisible(layerType === 'ortho');
+                    
+                    // Zoom to ortho extent when selected
+                    if (layerType === 'ortho') {
+                        map.getView().animate({
+                            center: ol.proj.fromLonLat(SITE_CONFIG.center),
+                            zoom: SITE_CONFIG.defaultZoom,
+                            duration: 500
+                        });
+                    }
+                }
+            }
+            
+            // Generate KML from features
+            function generateKML() {
+                const features = drawSource.getFeatures();
+                
+                if (features.length === 0) {
+                    return '';
+                }
+                
+                // Clone features and transform to EPSG:4326
+                const clonedFeatures = features.map(f => {
+                    const clone = f.clone();
+                    const geom = clone.getGeometry();
+                    
+                    // Handle circles specially (convert to polygon)
+                    if (geom.getType() === 'Circle') {
+                        const center = geom.getCenter();
+                        const radius = geom.getRadius();
+                        const polygon = ol.geom.Polygon.fromCircle(geom, 64);
+                        polygon.transform('EPSG:3857', 'EPSG:4326');
+                        clone.setGeometry(polygon);
+                    } else {
+                        geom.transform('EPSG:3857', 'EPSG:4326');
+                    }
+                    
+                    return clone;
+                });
+                
+                // Build KML manually for better control
+                let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Map Drawing Export</name>
+    <description>Generated from JotForm Map Widget</description>
+    <Style id="defaultStyle">
+      <LineStyle>
+        <color>ffeb6325</color>
+        <width>2</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>33eb6325</color>
+      </PolyStyle>
+      <IconStyle>
+        <color>ffeb6325</color>
+        <scale>1.0</scale>
+      </IconStyle>
+    </Style>
+`;
+                
+                clonedFeatures.forEach((feature, index) => {
+                    const geom = feature.getGeometry();
+                    const type = geom.getType();
+                    
+                    kml += `    <Placemark>
+      <name>Feature ${index + 1}</name>
+      <styleUrl>#defaultStyle</styleUrl>
+`;
+                    
+                    if (type === 'Point') {
+                        const coords = geom.getCoordinates();
+                        kml += `      <Point>
+        <coordinates>${coords[0]},${coords[1]},0</coordinates>
+      </Point>
+`;
+                    } else if (type === 'LineString') {
+                        const coords = geom.getCoordinates();
+                        const coordStr = coords.map(c => `${c[0]},${c[1]},0`).join(' ');
+                        kml += `      <LineString>
+        <coordinates>${coordStr}</coordinates>
+      </LineString>
+`;
+                    } else if (type === 'Polygon') {
+                        const coords = geom.getCoordinates()[0];
+                        const coordStr = coords.map(c => `${c[0]},${c[1]},0`).join(' ');
+                        kml += `      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>${coordStr}</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+`;
+                    }
+                    
+                    kml += `    </Placemark>
+`;
+                });
+                
+                kml += `  </Document>
+</kml>`;
+                
+                return kml;
+            }
+            
+            // Export KML file
+            function exportKML() {
+                const kml = generateKML();
+                
+                if (!kml) {
+                    alert('No features to export. Draw some shapes first!');
+                    return;
+                }
+                
+                // Show preview
+                document.getElementById('kmlContent').textContent = kml;
+                document.getElementById('kmlPreview').classList.add('visible');
+                
+                // Download file
+                const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'map-drawing.kml';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                updateStatus('ready', 'KML exported successfully!');
+            }
+            
+            // Send data to JotForm
+            function sendDataToJotForm() {
+                const kml = generateKML();
+                const featureCount = drawSource.getFeatures().length;
+                
+                // Send to JotForm via postMessage
+                JFWidget.sendData({
+                    value: kml,
+                    valid: featureCount > 0
+                });
+            }
+            
+            // Initialize event listeners
+            function initEventListeners() {
+                // Tool buttons
+                document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const tool = this.dataset.tool;
+                        // Toggle off if clicking active tool
+                        if (this.classList.contains('active')) {
+                            setDrawTool(null);
+                        } else {
+                            setDrawTool(tool);
+                        }
+                    });
+                });
+                
+                // Action buttons
+                document.getElementById('undoBtn').addEventListener('click', undoLast);
+                document.getElementById('clearBtn').addEventListener('click', clearAll);
+                document.getElementById('exportBtn').addEventListener('click', exportKML);
+                
+                // Layer buttons
+                document.querySelectorAll('.layer-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        switchLayer(this.dataset.layer);
+                    });
+                });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        setDrawTool(null);
+                    } else if (e.ctrlKey && e.key === 'z') {
+                        e.preventDefault();
+                        undoLast();
+                    }
+                });
+            }
+            
+            // JotForm Widget Integration (using postMessage directly)
+            function getQueryParam(name) {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(name);
+            }
+            
+            const jfQid = getQueryParam('qid');
+            const isInJotForm = (window.self !== window.top) && jfQid;
+            
+            // Custom JotForm Widget API using postMessage
+            const JFWidget = {
+                sendData: function(data) {
+                    if (!isInJotForm) return;
+                    window.parent.postMessage(JSON.stringify({
+                        type: 'data',
+                        qid: jfQid,
+                        value: data.value,
+                        valid: data.valid
+                    }), '*');
+                },
+                
+                sendSubmit: function(data) {
+                    if (!isInJotForm) return;
+                    window.parent.postMessage(JSON.stringify({
+                        type: 'submit',
+                        qid: jfQid,
+                        value: data.value,
+                        valid: data.valid
+                    }), '*');
+                }
+            };
+            
+            function initJotFormWidget() {
+                if (!isInJotForm) {
+                    console.log('Running outside JotForm - standalone mode');
+                    return;
+                }
+                
+                console.log('Initializing JotForm widget via postMessage, QID:', jfQid);
+                
+                // Signal ready to JotForm
+                JFWidget.sendData({ value: '', valid: true });
+                
+                // Also send frameReady
+                window.parent.postMessage(JSON.stringify({
+                    type: 'frameReady',
+                    qid: jfQid
+                }), '*');
+                
+                // Listen for messages from JotForm
+                window.addEventListener('message', function(event) {
+                    try {
+                        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                        
+                        if (data.type === 'submit') {
+                            console.log('JotForm submit event received');
+                            const kml = generateKML();
+                            JFWidget.sendSubmit({
+                                value: kml,
+                                valid: true
+                            });
+                        }
+                        
+                        if (data.type === 'ready' && data.value) {
+                            console.log('Loading existing KML value');
+                            loadKMLString(data.value);
+                        }
+                        
+                        if (data.type === 'settings') {
+                            const settings = data.settings || {};
+                            if (settings.defaultLat && settings.defaultLng) {
+                                map.getView().setCenter(
+                                    ol.proj.fromLonLat([
+                                        parseFloat(settings.defaultLng),
+                                        parseFloat(settings.defaultLat)
+                                    ])
+                                );
+                            }
+                            if (settings.defaultZoom) {
+                                map.getView().setZoom(parseInt(settings.defaultZoom));
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore non-JSON messages
+                    }
+                });
+            }
+            
+            function setupJotFormHandlers() {
+                // Not used anymore - kept for compatibility
+            }
+            
+            // Load KML string (for editing existing submissions)
+            function loadKMLString(kmlString) {
+                try {
+                    const format = new ol.format.KML();
+                    const features = format.readFeatures(kmlString, {
+                        featureProjection: 'EPSG:3857'
+                    });
+                    
+                    drawSource.addFeatures(features);
+                    featureHistory.push(...features);
+                    
+                    // Zoom to features
+                    if (features.length > 0) {
+                        const extent = drawSource.getExtent();
+                        map.getView().fit(extent, { padding: [50, 50, 50, 50] });
+                    }
+                } catch (e) {
+                    console.error('Error loading KML:', e);
+                }
+            }
+            
+            // Initialize everything
+            function init() {
+                try {
+                    initMap();
+                    initEventListeners();
+                    initJotFormWidget();
+                    
+                    // Hide ortho button if not configured
+                    if (!orthoLayer) {
+                        const orthoBtn = document.getElementById('orthoBtn');
+                        if (orthoBtn) orthoBtn.style.display = 'none';
+                    }
+                    
+                    // Display site name
+                    const siteNameEl = document.getElementById('siteName');
+                    if (siteNameEl && SITE_CONFIG.name) {
+                        siteNameEl.textContent = SITE_CONFIG.name;
+                    }
+                } catch (e) {
+                    console.error('Widget initialization error:', e);
+                    // Still try to signal ready to JotForm
+                    if (typeof JFCustomWidget !== 'undefined') {
+                        JFCustomWidget.sendData({ value: '', valid: true });
+                    }
+                }
+            }
+            
+            // Start when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+            
+            // Fallback: also try on window load in case scripts are slow
+            window.addEventListener('load', function() {
+                if (!map) init();
+            });
+            
+        })();
+    </script>
+</body>
+</html>
