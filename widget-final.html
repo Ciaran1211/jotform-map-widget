@@ -12,12 +12,22 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
         
+        :root {
+            --navy: #0F2458;
+            --blue-mid: #5381A1;
+            --cyan: #0ABAEF;
+            --light-bg: #E8EEF5;
+            --pink: #E92F8B;
+            --orange: #E76F41;
+            --yellow: #FEE980;
+        }
+        
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #f8f9fb;
-            color: #1a1f36;
+            background: var(--light-bg);
+            color: var(--navy);
             line-height: 1.5;
         }
         
@@ -34,18 +44,18 @@
             align-items: center;
             gap: 12px;
             padding: 12px 16px;
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            background: var(--navy);
             border-radius: 10px;
             color: white;
         }
         
         .site-header h4 { font-size: 14px; font-weight: 600; }
-        .site-header p { font-size: 12px; opacity: 0.9; }
+        .site-header p { font-size: 12px; opacity: 0.85; }
         
         .site-icon {
             width: 40px;
             height: 40px;
-            background: rgba(255,255,255,0.2);
+            background: var(--blue-mid);
             border-radius: 8px;
             display: flex;
             align-items: center;
@@ -59,14 +69,14 @@
             padding: 12px;
             background: white;
             border-radius: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            box-shadow: 0 1px 3px rgba(15, 36, 88, 0.08);
         }
         
         .toolbar-group {
             display: flex;
             gap: 4px;
             padding-right: 12px;
-            border-right: 1px solid #e5e7eb;
+            border-right: 1px solid var(--light-bg);
         }
         
         .toolbar-group:last-child { border-right: none; padding-right: 0; }
@@ -80,28 +90,28 @@
             font-size: 13px;
             font-weight: 500;
             font-family: inherit;
-            color: #374151;
-            background: #f3f4f6;
+            color: var(--navy);
+            background: var(--light-bg);
             border: 1px solid transparent;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.15s ease;
         }
         
-        .tool-btn:hover { background: #e5e7eb; }
-        .tool-btn.active { background: #2563eb; color: white; }
-        .tool-btn.danger { color: #dc2626; }
-        .tool-btn.danger:hover { background: #fef2f2; }
+        .tool-btn:hover { background: #d9e4ef; }
+        .tool-btn.active { background: var(--cyan); color: white; }
+        .tool-btn.danger { color: var(--orange); }
+        .tool-btn.danger:hover { background: #fef3ed; }
         .tool-btn svg { width: 16px; height: 16px; }
         
         .map-wrapper {
             position: relative;
             border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(15, 36, 88, 0.08), 0 4px 12px rgba(15, 36, 88, 0.05);
         }
         
-        #map { width: 100%; height: 450px; background: #e8ecf1; }
+        #map { width: 100%; height: 450px; background: #d9e4ef; }
         
         .map-overlay {
             position: absolute;
@@ -112,11 +122,11 @@
             backdrop-filter: blur(8px);
             border-radius: 6px;
             font-size: 12px;
-            color: #6b7280;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            color: var(--blue-mid);
+            box-shadow: 0 1px 3px rgba(15, 36, 88, 0.1);
         }
         
-        .feature-count { font-weight: 600; color: #2563eb; }
+        .feature-count { font-weight: 600; color: var(--cyan); }
         
         .status-bar {
             display: flex;
@@ -126,7 +136,7 @@
             background: white;
             border-radius: 8px;
             font-size: 12px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 2px rgba(15, 36, 88, 0.05);
         }
         
         .status-indicator { display: flex; align-items: center; gap: 6px; }
@@ -135,11 +145,11 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #d1d5db;
+            background: var(--blue-mid);
         }
         
-        .status-dot.ready { background: #10b981; }
-        .status-dot.drawing { background: #f59e0b; animation: pulse 1.5s infinite; }
+        .status-dot.ready { background: var(--cyan); }
+        .status-dot.drawing { background: var(--yellow); animation: pulse 1.5s infinite; }
         
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
@@ -149,23 +159,24 @@
             padding: 6px 10px;
             font-size: 11px;
             font-weight: 500;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
+            background: var(--light-bg);
+            border: 1px solid #d9e4ef;
             border-radius: 4px;
             cursor: pointer;
+            color: var(--navy);
         }
         
-        .layer-btn:hover { background: #f3f4f6; }
-        .layer-btn.active { background: #1e293b; color: white; border-color: #1e293b; }
+        .layer-btn:hover { background: #d9e4ef; }
+        .layer-btn.active { background: var(--navy); color: white; border-color: var(--navy); }
         
         .ol-zoom { top: auto; bottom: 12px; right: 12px; left: auto; }
-        .ol-zoom button { width: 32px; height: 32px; background: white; color: #374151; border-radius: 6px; }
+        .ol-zoom button { width: 32px; height: 32px; background: white; color: var(--navy); border-radius: 6px; }
         
         /* Custom confirm modal */
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(15, 36, 88, 0.4);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -186,7 +197,7 @@
             padding: 24px;
             max-width: 320px;
             width: 90%;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 40px rgba(15, 36, 88, 0.25);
             transform: scale(0.9);
             transition: transform 0.2s;
         }
@@ -198,13 +209,13 @@
         .modal-title {
             font-size: 16px;
             font-weight: 600;
-            color: #1f2937;
+            color: var(--navy);
             margin-bottom: 8px;
         }
         
         .modal-message {
             font-size: 14px;
-            color: #6b7280;
+            color: var(--blue-mid);
             margin-bottom: 20px;
         }
         
@@ -225,30 +236,31 @@
         }
         
         .modal-btn-cancel {
-            background: #f3f4f6;
-            color: #374151;
+            background: var(--light-bg);
+            color: var(--navy);
         }
         
         .modal-btn-cancel:hover {
-            background: #e5e7eb;
+            background: #d9e4ef;
         }
         
         .modal-btn-confirm {
-            background: #dc2626;
+            background: var(--orange);
             color: white;
         }
         
         .modal-btn-confirm:hover {
-            background: #b91c1c;
+            background: #d4623a;
         }
         
         .debug-panel {
             padding: 10px;
-            background: #fef3c7;
-            border: 1px solid #f59e0b;
+            background: #fef9e6;
+            border: 1px solid var(--yellow);
             border-radius: 8px;
             font-size: 11px;
             font-family: monospace;
+            color: var(--navy);
             display: none;
         }
         
@@ -402,7 +414,7 @@
                     name: 'Saraji',
                     company: 'BMA',
                     tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/saraji/{z}/{x}/{y}.png',
-                    center: [148.30, -22.42],
+                    center: [148.13, -22.42],
                     minZoom: 14,
                     maxZoom: 21,
                     defaultZoom: 17
@@ -513,11 +525,11 @@
             
             // Draw style
             const drawStyle = new ol.style.Style({
-                fill: new ol.style.Fill({ color: 'rgba(37, 99, 235, 0.2)' }),
-                stroke: new ol.style.Stroke({ color: '#2563eb', width: 2 }),
+                fill: new ol.style.Fill({ color: 'rgba(10, 186, 239, 0.2)' }),  // cyan with opacity
+                stroke: new ol.style.Stroke({ color: '#0ABAEF', width: 2 }),    // cyan
                 image: new ol.style.Circle({
                     radius: 6,
-                    fill: new ol.style.Fill({ color: '#2563eb' }),
+                    fill: new ol.style.Fill({ color: '#0ABAEF' }),
                     stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
                 })
             });
@@ -670,7 +682,7 @@
                 
                 let kml = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n';
                 kml += '<name>' + (SITE ? SITE.name : 'Map Drawing') + '</name>\n';
-                kml += '<Style id="s"><LineStyle><color>ffeb6325</color><width>2</width></LineStyle><PolyStyle><color>33eb6325</color></PolyStyle></Style>\n';
+                kml += '<Style id="s"><LineStyle><color>ffEFBA0A</color><width>2</width></LineStyle><PolyStyle><color>33EFBA0A</color></PolyStyle></Style>\n';
                 
                 features.forEach((f, i) => {
                     const clone = f.clone();
