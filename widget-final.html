@@ -35,7 +35,6 @@
             overflow: hidden;
         }
         
-        /* Layout */
         .widget-container {
             display: flex;
             flex-direction: column;
@@ -46,7 +45,6 @@
             transition: all 0.3s ease;
         }
 
-        /* Header */
         .site-header {
             display: flex;
             align-items: center;
@@ -68,7 +66,6 @@
             justify-content: center;
         }
         
-        /* Toolbar */
         .toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -88,7 +85,6 @@
         }
         .toolbar-group:last-child { border-right: none; padding-right: 0; }
         
-        /* Buttons */
         .tool-btn {
             display: inline-flex;
             align-items: center;
@@ -107,16 +103,12 @@
         
         .tool-btn:hover { background: #d9e4ef; }
         .tool-btn.active { background: var(--cyan); color: var(--white); }
-        
         .tool-btn.danger { color: var(--orange); }
         .tool-btn.danger:hover { background: #fef3ed; }
-        
         .tool-btn.success { color: var(--green); }
         .tool-btn.success:hover { background: #ecfdf5; }
-        
         .tool-btn svg { width: 16px; height: 16px; }
         
-        /* Map Area */
         .map-wrapper {
             position: relative;
             flex: 1;
@@ -138,7 +130,7 @@
         .map-overlay {
             position: absolute;
             bottom: 12px;
-            left: 12px;
+            right: 12px; /* Changed from left: 12px to right: 12px */
             padding: 8px 12px;
             background: rgba(255,255,255,0.95);
             backdrop-filter: blur(4px);
@@ -146,9 +138,9 @@
             font-size: 12px;
             color: var(--blue-mid);
             pointer-events: none;
+            z-index: 100;
         }
         
-        /* Status Bar */
         .status-bar {
             display: flex;
             align-items: center;
@@ -187,7 +179,6 @@
         }
         .layer-btn.active { background: var(--navy); color: var(--white); }
         
-        /* Generic Modal System */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -216,10 +207,8 @@
         }
         
         .modal-overlay.show .modal-box { transform: scale(1); }
-        
         .modal-title { font-size: 18px; font-weight: 600; color: var(--navy); margin-bottom: 8px; }
         .modal-message { font-size: 14px; color: var(--blue-mid); margin-bottom: 24px; line-height: 1.5; }
-        
         .modal-buttons { display: flex; gap: 12px; justify-content: flex-end; }
         
         .modal-btn {
@@ -239,7 +228,6 @@
         .modal-btn.danger { background: var(--orange); color: var(--white); }
         .modal-btn.danger:hover { background: #d4623a; }
 
-        /* Fullscreen Toggle Button Styles */
         .fs-toggle-btn {
             background: var(--white);
             border: none;
@@ -255,7 +243,6 @@
         }
         .fs-toggle-btn:hover { background: var(--light-bg); }
         
-        /* Debug */
         .debug-panel { display: none; padding: 10px; background: #fef9e6; color: var(--orange); font-family: monospace; font-size: 11px; margin-bottom: 10px; border-radius: 6px;}
         .debug-panel.show { display: block; }
     </style>
@@ -303,11 +290,14 @@
                 <button class="tool-btn" id="undoBtn" title="Undo Last">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/></svg> Undo
                 </button>
-                <button class="tool-btn success" id="downloadBtn" title="Download KML">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> KML
-                </button>
                 <button class="tool-btn danger" id="clearBtn" title="Clear All">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Clear
+                </button>
+            </div>
+
+            <div class="toolbar-group">
+                <button class="tool-btn success" id="downloadBtn" title="Download KML">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> KML
                 </button>
             </div>
             
@@ -359,7 +349,6 @@
         (function() {
             'use strict';
             
-            // --- CONFIGURATION ---
             const SITES = {
                 'binduli-north': {
                     name: 'Binduli North',
@@ -391,7 +380,6 @@
                 }
             };
             
-            // --- STATE MANAGEMENT ---
             const State = {
                 map: null,
                 drawSource: null,
@@ -400,7 +388,6 @@
                 site: null
             };
 
-            // --- UTILITIES ---
             function getUrlParam(name) { return new URLSearchParams(window.location.search).get(name); }
             function debug(msg) { 
                 const el = document.getElementById('debugPanel');
@@ -408,7 +395,6 @@
                 console.log('[Widget]', msg);
             }
 
-            // --- UI MODAL CLASS ---
             const Modal = {
                 el: document.getElementById('genericModal'),
                 titleEl: document.getElementById('modalTitle'),
@@ -422,7 +408,6 @@
                     this.confirmBtn.textContent = confirmText || 'Confirm';
                     this.confirmBtn.className = `modal-btn ${type === 'danger' ? 'danger' : 'primary'}`;
                     
-                    // Unbind previous listeners by cloning
                     const newConfirm = this.confirmBtn.cloneNode(true);
                     this.confirmBtn.parentNode.replaceChild(newConfirm, this.confirmBtn);
                     this.confirmBtn = newConfirm;
@@ -439,7 +424,6 @@
                 }
             };
 
-            // --- MAP LOGIC ---
             function initMap() {
                 const siteKey = getUrlParam('site');
                 State.site = SITES[siteKey];
@@ -497,35 +481,20 @@
                 });
             }
 
-            // --- DRAWING TOOLS ---
             function setTool(toolType) {
                 if (State.drawInteraction) State.map.removeInteraction(State.drawInteraction);
-                
                 document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-                
-                if (!toolType) {
-                    setStatus('ready', 'Ready');
-                    return;
-                }
-
+                if (!toolType) { setStatus('ready', 'Ready'); return; }
                 document.querySelector(`[data-tool="${toolType}"]`).classList.add('active');
-                
                 const geometryFunction = toolType === 'Box' ? ol.interaction.Draw.createBox() : undefined;
                 const type = (toolType === 'Box' || toolType === 'Circle') ? 'Circle' : toolType;
-
-                State.drawInteraction = new ol.interaction.Draw({
-                    source: State.drawSource,
-                    type: type,
-                    geometryFunction: geometryFunction
-                });
-
+                State.drawInteraction = new ol.interaction.Draw({ source: State.drawSource, type: type, geometryFunction: geometryFunction });
                 State.drawInteraction.on('drawstart', () => setStatus('drawing', 'Drawing...'));
                 State.drawInteraction.on('drawend', (e) => {
                     State.featureHistory.push(e.feature);
                     setStatus('ready', 'Feature added');
                     sendToJotForm();
                 });
-
                 State.map.addInteraction(State.drawInteraction);
                 setStatus('ready', `${toolType} active`);
             }
@@ -536,52 +505,30 @@
                 document.getElementById('statusText').textContent = text;
             }
 
-            // --- ACTIONS ---
             function switchLayer(layerName) {
-                document.querySelectorAll('.layer-btn').forEach(b => {
-                    b.classList.toggle('active', b.dataset.layer === layerName);
-                });
-                State.map.getLayers().forEach(lyr => {
-                    if (lyr.get('name')) lyr.setVisible(lyr.get('name') === layerName);
-                });
+                document.querySelectorAll('.layer-btn').forEach(b => { b.classList.toggle('active', b.dataset.layer === layerName); });
+                State.map.getLayers().forEach(lyr => { if (lyr.get('name')) lyr.setVisible(lyr.get('name') === layerName); });
             }
 
             function clearFeatures() {
                 if (State.drawSource.getFeatures().length === 0) return;
-                
-                Modal.show(
-                    'Clear All Features?', 
-                    'This will remove all shapes you have drawn. This action cannot be undone.',
-                    'Clear All',
-                    'danger',
-                    () => {
-                        State.drawSource.clear();
-                        State.featureHistory = [];
-                        sendToJotForm();
-                        setStatus('ready', 'Canvas cleared');
-                    }
-                );
+                Modal.show('Clear All Features?', 'This will remove all shapes you have drawn. This action cannot be undone.', 'Clear All', 'danger', () => {
+                    State.drawSource.clear();
+                    State.featureHistory = [];
+                    sendToJotForm();
+                    setStatus('ready', 'Canvas cleared');
+                });
             }
 
-            // --- FULLSCREEN LOGIC (Native API) ---
             function toggleFullscreen() {
                 const doc = document.documentElement;
-                
                 if (!document.fullscreenElement) {
-                    // Enter Fullscreen via Modal Confirmation
-                    Modal.show(
-                        'Enter Fullscreen Mode?',
-                        'This will maximize the map. You can exit by pressing ESC.',
-                        'Go Fullscreen',
-                        'primary',
-                        () => {
-                            if (doc.requestFullscreen) doc.requestFullscreen();
-                            else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
-                            else if (doc.msRequestFullscreen) doc.msRequestFullscreen();
-                        }
-                    );
+                    Modal.show('Enter Fullscreen Mode?', 'This will maximize the map. You can exit by pressing ESC.', 'Go Fullscreen', 'primary', () => {
+                        if (doc.requestFullscreen) doc.requestFullscreen();
+                        else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
+                        else if (doc.msRequestFullscreen) doc.msRequestFullscreen();
+                    });
                 } else {
-                    // Exit Fullscreen
                     if (document.exitFullscreen) document.exitFullscreen();
                     else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
                 }
@@ -595,17 +542,13 @@
                 setTimeout(() => State.map && State.map.updateSize(), 200);
             }
 
-            // --- DATA HANDLERS ---
             const qid = getUrlParam('qid');
             const inJotForm = (window.self !== window.top) && qid;
 
             function generateKMLString() {
                 const features = State.drawSource.getFeatures();
                 if (!features.length) return '';
-                
                 const format = new ol.format.KML({ extractStyles: false, writeStyles: true });
-                
-                // Clone & Transform for KML (Mercator -> LatLon)
                 const featuresClone = features.map(f => {
                     const clone = f.clone();
                     clone.getGeometry().transform('EPSG:3857', 'EPSG:4326');
@@ -615,17 +558,12 @@
                     }));
                     return clone;
                 });
-                
                 return format.writeFeatures(featuresClone);
             }
 
             function downloadKML() {
                 const kml = generateKMLString();
-                if (!kml) {
-                    setStatus('ready', 'Nothing to download');
-                    return;
-                }
-                
+                if (!kml) { setStatus('ready', 'Nothing to download'); return; }
                 const blob = new Blob([kml], {type: 'application/vnd.google-earth.kml+xml'});
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -644,56 +582,32 @@
                 window.parent.postMessage(JSON.stringify({ type: 'data', qid: qid, value: kml, valid: true }), '*');
             }
 
-            // --- INITIALIZATION ---
             function init() {
                 initMap();
-
-                // Tools
                 document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
                     btn.addEventListener('click', () => setTool(btn.classList.contains('active') ? null : btn.dataset.tool));
                 });
-
-                // Actions
                 document.getElementById('undoBtn').addEventListener('click', () => {
-                    if (State.featureHistory.length) {
-                        State.drawSource.removeFeature(State.featureHistory.pop());
-                        sendToJotForm();
-                    }
+                    if (State.featureHistory.length) { State.drawSource.removeFeature(State.featureHistory.pop()); sendToJotForm(); }
                 });
-                
                 document.getElementById('clearBtn').addEventListener('click', clearFeatures);
                 document.getElementById('downloadBtn').addEventListener('click', downloadKML);
-                
-                // Layers
                 document.querySelectorAll('.layer-btn').forEach(btn => {
                     btn.addEventListener('click', () => switchLayer(btn.dataset.layer));
                 });
-
-                // Fullscreen
                 document.getElementById('fullscreenToggle').addEventListener('click', toggleFullscreen);
                 document.addEventListener('fullscreenchange', updateFullscreenUI);
-
-                // Modal
                 document.getElementById('modalCancel').addEventListener('click', () => Modal.hide());
-                document.getElementById('genericModal').addEventListener('click', (e) => {
-                    if(e.target.id === 'genericModal') Modal.hide();
-                });
-
-                // Resize
+                document.getElementById('genericModal').addEventListener('click', (e) => { if(e.target.id === 'genericModal') Modal.hide(); });
                 let resizeTimer;
                 window.addEventListener('resize', () => {
                     clearTimeout(resizeTimer);
                     resizeTimer = setTimeout(() => State.map && State.map.updateSize(), 100);
                 });
-
-                // JotForm Handshake
-                if (inJotForm) {
-                    window.parent.postMessage(JSON.stringify({ type: 'frameReady', qid: qid }), '*');
-                }
+                if (inJotForm) { window.parent.postMessage(JSON.stringify({ type: 'frameReady', qid: qid }), '*'); }
             }
 
             init();
-
         })();
     </script>
 </body>
