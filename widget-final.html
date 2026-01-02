@@ -20,6 +20,7 @@
             --orange: #E76F41;
             --yellow: #FEE980;
             --white: #ffffff;
+            --green: #10B981;
             --shadow-sm: 0 1px 3px rgba(15, 36, 88, 0.08);
             --shadow-lg: 0 20px 40px rgba(15, 36, 88, 0.25);
         }
@@ -31,7 +32,7 @@
             background: var(--light-bg);
             color: var(--navy);
             line-height: 1.5;
-            overflow: hidden; /* Prevent scroll bars in iframe */
+            overflow: hidden;
         }
         
         /* Layout */
@@ -40,33 +41,9 @@
             flex-direction: column;
             gap: 12px;
             padding: 16px;
-            height: 100vh; /* Fill iframe */
-            transition: all 0.3s ease;
-        }
-        
-        /* Fullscreen Override - CSS Only */
-        .widget-container.fullscreen {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            padding: 0;
-            margin: 0;
-            background: var(--light-bg);
-            border-radius: 0;
-            width: 100vw;
             height: 100vh;
-        }
-
-        .widget-container.fullscreen .map-wrapper {
-            border-radius: 0;
-            box-shadow: none;
-        }
-
-        .widget-container.fullscreen .toolbar,
-        .widget-container.fullscreen .site-header,
-        .widget-container.fullscreen .status-bar {
-            border-radius: 0;
-            z-index: 10000; /* Keep controls above map */
+            background: var(--light-bg);
+            transition: all 0.3s ease;
         }
 
         /* Header */
@@ -130,14 +107,19 @@
         
         .tool-btn:hover { background: #d9e4ef; }
         .tool-btn.active { background: var(--cyan); color: var(--white); }
+        
         .tool-btn.danger { color: var(--orange); }
         .tool-btn.danger:hover { background: #fef3ed; }
+        
+        .tool-btn.success { color: var(--green); }
+        .tool-btn.success:hover { background: #ecfdf5; }
+        
         .tool-btn svg { width: 16px; height: 16px; }
         
         /* Map Area */
         .map-wrapper {
             position: relative;
-            flex: 1; /* Take remaining height */
+            flex: 1;
             border-radius: 10px;
             overflow: hidden;
             box-shadow: var(--shadow-sm);
@@ -166,6 +148,7 @@
             pointer-events: none;
         }
         
+        /* Status Bar */
         .status-bar {
             display: flex;
             align-items: center;
@@ -320,6 +303,9 @@
                 <button class="tool-btn" id="undoBtn" title="Undo Last">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/></svg> Undo
                 </button>
+                <button class="tool-btn success" id="downloadBtn" title="Download KML">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> KML
+                </button>
                 <button class="tool-btn danger" id="clearBtn" title="Clear All">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Clear
                 </button>
@@ -411,8 +397,7 @@
                 drawSource: null,
                 drawInteraction: null,
                 featureHistory: [],
-                site: null,
-                isFullscreen: false
+                site: null
             };
 
             // --- UTILITIES ---
@@ -430,7 +415,6 @@
                 msgEl: document.getElementById('modalMessage'),
                 confirmBtn: document.getElementById('modalConfirm'),
                 cancelBtn: document.getElementById('modalCancel'),
-                currentCallback: null,
 
                 show(title, message, confirmText, type, onConfirm) {
                     this.titleEl.textContent = title;
@@ -438,7 +422,7 @@
                     this.confirmBtn.textContent = confirmText || 'Confirm';
                     this.confirmBtn.className = `modal-btn ${type === 'danger' ? 'danger' : 'primary'}`;
                     
-                    // Unbind previous listeners
+                    // Unbind previous listeners by cloning
                     const newConfirm = this.confirmBtn.cloneNode(true);
                     this.confirmBtn.parentNode.replaceChild(newConfirm, this.confirmBtn);
                     this.confirmBtn = newConfirm;
@@ -461,16 +445,14 @@
                 State.site = SITES[siteKey];
 
                 if (!State.site) {
-                    debug('ERROR: Site key not found or invalid. Use ?site=key');
+                    debug('ERROR: Site key not found. Use ?site=key');
                     document.getElementById('siteName').textContent = 'Configuration Error';
                     return;
                 }
 
-                // Update UI
                 document.getElementById('siteName').textContent = State.site.name;
                 document.getElementById('siteInfo').textContent = State.site.company;
 
-                // Layers
                 const osm = new ol.layer.Tile({ source: new ol.source.OSM(), visible: false, properties: {name: 'osm'} });
                 const satellite = new ol.layer.Tile({ 
                     source: new ol.source.XYZ({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZoom: 19 }), 
@@ -484,7 +466,6 @@
                     properties: {name: 'ortho'}
                 });
 
-                // Vector Layer
                 State.drawSource = new ol.source.Vector();
                 const drawLayer = new ol.layer.Vector({
                     source: State.drawSource,
@@ -503,10 +484,9 @@
                         zoom: State.site.defaultZoom,
                         maxZoom: 21
                     }),
-                    controls: ol.control.defaults.defaults({ zoom: false }).extend([new ol.control.ScaleLine()]) // Custom zoom handling if needed
+                    controls: ol.control.defaults.defaults({ zoom: false }).extend([new ol.control.ScaleLine()])
                 });
 
-                // Listeners
                 State.map.on('pointermove', evt => {
                     const coords = ol.proj.toLonLat(evt.coordinate);
                     document.getElementById('coordDisplay').textContent = `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`;
@@ -561,7 +541,6 @@
                 document.querySelectorAll('.layer-btn').forEach(b => {
                     b.classList.toggle('active', b.dataset.layer === layerName);
                 });
-                
                 State.map.getLayers().forEach(lyr => {
                     if (lyr.get('name')) lyr.setVisible(lyr.get('name') === layerName);
                 });
@@ -570,7 +549,6 @@
             function clearFeatures() {
                 if (State.drawSource.getFeatures().length === 0) return;
                 
-                // Use Generic Modal for Clear Confirmation
                 Modal.show(
                     'Clear All Features?', 
                     'This will remove all shapes you have drawn. This action cannot be undone.',
@@ -585,73 +563,84 @@
                 );
             }
 
-            // --- FULLSCREEN LOGIC (CUSTOM) ---
+            // --- FULLSCREEN LOGIC (Native API) ---
             function toggleFullscreen() {
-                const container = document.getElementById('widgetRoot');
-                const btnIconMax = document.getElementById('icon-maximize');
-                const btnIconMin = document.getElementById('icon-minimize');
-
-                if (!State.isFullscreen) {
-                    // Trigger Custom Modal BEFORE entering fullscreen
+                const doc = document.documentElement;
+                
+                if (!document.fullscreenElement) {
+                    // Enter Fullscreen via Modal Confirmation
                     Modal.show(
                         'Enter Fullscreen Mode?',
-                        'This will expand the map to fill the available window area for easier drawing.',
-                        'Enter Fullscreen',
+                        'This will maximize the map. You can exit by pressing ESC.',
+                        'Go Fullscreen',
                         'primary',
                         () => {
-                            // EXECUTE CSS FULLSCREEN
-                            State.isFullscreen = true;
-                            container.classList.add('fullscreen');
-                            btnIconMax.style.display = 'none';
-                            btnIconMin.style.display = 'block';
-                            document.getElementById('fullscreenToggle').title = "Exit Fullscreen";
-                            
-                            // Force map resize after transition
-                            setTimeout(() => State.map.updateSize(), 300);
+                            if (doc.requestFullscreen) doc.requestFullscreen();
+                            else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
+                            else if (doc.msRequestFullscreen) doc.msRequestFullscreen();
                         }
                     );
                 } else {
-                    // Exit immediately without confirmation
-                    State.isFullscreen = false;
-                    container.classList.remove('fullscreen');
-                    btnIconMax.style.display = 'block';
-                    btnIconMin.style.display = 'none';
-                    document.getElementById('fullscreenToggle').title = "Toggle Fullscreen";
-                    setTimeout(() => State.map.updateSize(), 300);
+                    // Exit Fullscreen
+                    if (document.exitFullscreen) document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
                 }
             }
 
-            // --- JOTFORM INTEGRATION ---
+            function updateFullscreenUI() {
+                const isFs = !!document.fullscreenElement;
+                document.getElementById('icon-maximize').style.display = isFs ? 'none' : 'block';
+                document.getElementById('icon-minimize').style.display = isFs ? 'block' : 'none';
+                document.getElementById('fullscreenToggle').title = isFs ? "Exit Fullscreen" : "Toggle Fullscreen";
+                setTimeout(() => State.map && State.map.updateSize(), 200);
+            }
+
+            // --- DATA HANDLERS ---
             const qid = getUrlParam('qid');
             const inJotForm = (window.self !== window.top) && qid;
 
-            function generateKML() {
+            function generateKMLString() {
                 const features = State.drawSource.getFeatures();
                 if (!features.length) return '';
                 
-                const format = new ol.format.KML({
-                    extractStyles: false,
-                    writeStyles: true
-                });
+                const format = new ol.format.KML({ extractStyles: false, writeStyles: true });
                 
-                // Clone features to transform projection for KML (EPSG:4326)
+                // Clone & Transform for KML (Mercator -> LatLon)
                 const featuresClone = features.map(f => {
                     const clone = f.clone();
                     clone.getGeometry().transform('EPSG:3857', 'EPSG:4326');
-                    // Style override for KML
                     clone.setStyle(new ol.style.Style({
                         fill: new ol.style.Fill({ color: [239, 186, 10, 0.3] }),
                         stroke: new ol.style.Stroke({ color: [239, 186, 10, 1], width: 2 })
                     }));
                     return clone;
                 });
-
+                
                 return format.writeFeatures(featuresClone);
+            }
+
+            function downloadKML() {
+                const kml = generateKMLString();
+                if (!kml) {
+                    setStatus('ready', 'Nothing to download');
+                    return;
+                }
+                
+                const blob = new Blob([kml], {type: 'application/vnd.google-earth.kml+xml'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `map-drawing-${Date.now()}.kml`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                setStatus('ready', 'Download started');
             }
 
             function sendToJotForm() {
                 if (!inJotForm) return;
-                const kml = generateKML();
+                const kml = generateKMLString();
                 window.parent.postMessage(JSON.stringify({ type: 'data', qid: qid, value: kml, valid: true }), '*');
             }
 
@@ -659,50 +648,50 @@
             function init() {
                 initMap();
 
-                // Tool Buttons
+                // Tools
                 document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        setTool(btn.classList.contains('active') ? null : btn.dataset.tool);
-                    });
+                    btn.addEventListener('click', () => setTool(btn.classList.contains('active') ? null : btn.dataset.tool));
                 });
 
-                // Action Buttons
+                // Actions
                 document.getElementById('undoBtn').addEventListener('click', () => {
                     if (State.featureHistory.length) {
                         State.drawSource.removeFeature(State.featureHistory.pop());
                         sendToJotForm();
                     }
                 });
-                document.getElementById('clearBtn').addEventListener('click', clearFeatures);
                 
-                // Layer Buttons
+                document.getElementById('clearBtn').addEventListener('click', clearFeatures);
+                document.getElementById('downloadBtn').addEventListener('click', downloadKML);
+                
+                // Layers
                 document.querySelectorAll('.layer-btn').forEach(btn => {
                     btn.addEventListener('click', () => switchLayer(btn.dataset.layer));
                 });
 
                 // Fullscreen
                 document.getElementById('fullscreenToggle').addEventListener('click', toggleFullscreen);
+                document.addEventListener('fullscreenchange', updateFullscreenUI);
 
-                // Modal Cancel
+                // Modal
                 document.getElementById('modalCancel').addEventListener('click', () => Modal.hide());
                 document.getElementById('genericModal').addEventListener('click', (e) => {
                     if(e.target.id === 'genericModal') Modal.hide();
                 });
 
-                // Window Resize (Debounced)
+                // Resize
                 let resizeTimer;
                 window.addEventListener('resize', () => {
                     clearTimeout(resizeTimer);
                     resizeTimer = setTimeout(() => State.map && State.map.updateSize(), 100);
                 });
 
-                // JotForm Init
+                // JotForm Handshake
                 if (inJotForm) {
                     window.parent.postMessage(JSON.stringify({ type: 'frameReady', qid: qid }), '*');
                 }
             }
 
-            // Start
             init();
 
         })();
