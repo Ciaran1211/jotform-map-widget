@@ -420,20 +420,28 @@
             let featureHistory = [];
             
             // ==============================================
-            // ORTHO IMAGE CONFIGURATION
+            // ORTHO TILES CONFIGURATION
             // ==============================================
-            // To use your own ortho image:
-            // 1. Convert .sid to .jpg using QGIS or GDAL
-            // 2. Upload the .jpg to GitHub (same repo as widget)
-            // 3. Update ORTHO_CONFIG below with your values
+            // Configure your S3-hosted ortho tiles here
             
             const ORTHO_CONFIG = {
-                enabled: true,  // Set to true to enable ortho layer
-                url: 'YOUR_ORTHO_URL_HERE',  // e.g., 'https://username.github.io/repo/ortho.jpg'
+                enabled: true,
                 
-                // Bounds calculated from your .wld file (UTM Zone 10N assumed)
-                // Format: [minLon, minLat, maxLon, maxLat]
-                bounds: [-122.565, 44.540, -122.559, 44.545]
+                // S3 tile URL (with {z}/{x}/{y} placeholders)
+                tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/binduli-north/{z}/{x}/{y}.png',
+                
+                // Site bounds [minLon, minLat, maxLon, maxLat] - from gdalinfo corners
+                bounds: [121.375, -30.783, 121.390, -30.767],
+                
+                // Center point [lon, lat] - from gdalinfo
+                center: [121.3825, -30.775],
+                
+                // Zoom range that your tiles cover
+                minZoom: 14,
+                maxZoom: 21,
+                
+                // Default zoom when switching to ortho
+                defaultZoom: 17
             };
             // ==============================================
             
@@ -451,17 +459,14 @@
                 visible: false
             });
             
-            // Ortho image layer (created if enabled)
+            // Ortho tile layer (XYZ tiles from S3)
             let orthoLayer = null;
-            if (ORTHO_CONFIG.enabled && ORTHO_CONFIG.url !== 'YOUR_ORTHO_URL_HERE') {
-                orthoLayer = new ol.layer.Image({
-                    source: new ol.source.ImageStatic({
-                        url: ORTHO_CONFIG.url,
-                        imageExtent: ol.proj.transformExtent(
-                            ORTHO_CONFIG.bounds,
-                            'EPSG:4326',
-                            'EPSG:3857'
-                        )
+            if (ORTHO_CONFIG.enabled && ORTHO_CONFIG.tileUrl) {
+                orthoLayer = new ol.layer.Tile({
+                    source: new ol.source.XYZ({
+                        url: ORTHO_CONFIG.tileUrl,
+                        minZoom: ORTHO_CONFIG.minZoom,
+                        maxZoom: ORTHO_CONFIG.maxZoom
                     }),
                     visible: false
                 });
@@ -499,18 +504,40 @@
                 }
                 layers.push(drawLayer);
                 
+                // Determine initial view - use ortho center if configured
+                let initialCenter = CONFIG.defaultCenter;
+                let initialZoom = CONFIG.defaultZoom;
+                
+                if (ORTHO_CONFIG.enabled && ORTHO_CONFIG.center) {
+                    initialCenter = ORTHO_CONFIG.center;
+                    initialZoom = ORTHO_CONFIG.defaultZoom || 17;
+                }
+                
                 map = new ol.Map({
                     target: 'map',
                     layers: layers,
                     view: new ol.View({
-                        center: ol.proj.fromLonLat(CONFIG.defaultCenter),
-                        zoom: CONFIG.defaultZoom,
-                        maxZoom: CONFIG.maxZoom
+                        center: ol.proj.fromLonLat(initialCenter),
+                        zoom: initialZoom,
+                        maxZoom: ORTHO_CONFIG.maxZoom || CONFIG.maxZoom
                     }),
                     controls: ol.control.defaults.defaults().extend([
                         new ol.control.ScaleLine()
                     ])
                 });
+                
+                // If ortho is enabled, show it by default and update layer buttons
+                if (orthoLayer && ORTHO_CONFIG.enabled) {
+                    osmLayer.setVisible(false);
+                    orthoLayer.setVisible(true);
+                    
+                    // Update button states
+                    setTimeout(function() {
+                        document.querySelectorAll('.layer-btn').forEach(btn => {
+                            btn.classList.toggle('active', btn.dataset.layer === 'ortho');
+                        });
+                    }, 100);
+                }
                 
                 // Track mouse position
                 map.on('pointermove', function(evt) {
@@ -522,8 +549,8 @@
                 // Update feature count when source changes
                 drawSource.on('change', updateFeatureCount);
                 
-                // Try to get user location
-                if (navigator.geolocation) {
+                // Only use geolocation if no ortho is configured
+                if (!ORTHO_CONFIG.enabled && navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(function(pos) {
                         const coords = [pos.coords.longitude, pos.coords.latitude];
                         map.getView().animate({
@@ -640,12 +667,11 @@
                     
                     // Zoom to ortho extent when selected
                     if (layerType === 'ortho') {
-                        const extent = ol.proj.transformExtent(
-                            ORTHO_CONFIG.bounds,
-                            'EPSG:4326',
-                            'EPSG:3857'
-                        );
-                        map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 19 });
+                        map.getView().animate({
+                            center: ol.proj.fromLonLat(ORTHO_CONFIG.center),
+                            zoom: ORTHO_CONFIG.defaultZoom,
+                            duration: 500
+                        });
                     }
                 }
             }
