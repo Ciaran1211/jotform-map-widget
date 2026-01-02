@@ -172,6 +172,110 @@
         .ol-zoom { top: auto; bottom: 12px; right: 12px; left: auto; }
         .ol-zoom button { width: 32px; height: 32px; background: white; color: var(--navy); border-radius: 6px; }
         
+        /* Fullscreen mode */
+        .widget-container.fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            padding: 0;
+            background: var(--light-bg);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .widget-container.fullscreen .site-header {
+            border-radius: 0;
+        }
+        
+        .widget-container.fullscreen .toolbar {
+            border-radius: 0;
+            margin: 0;
+        }
+        
+        .widget-container.fullscreen .map-wrapper {
+            flex: 1;
+            border-radius: 0;
+            min-height: 0;
+        }
+        
+        .widget-container.fullscreen #map {
+            height: 100% !important;
+        }
+        
+        .widget-container.fullscreen .status-bar {
+            border-radius: 0;
+        }
+        
+        .widget-container.fullscreen .debug-panel {
+            display: none;
+        }
+        
+        .fullscreen-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--navy);
+            box-shadow: 0 1px 3px rgba(15, 36, 88, 0.15);
+            transition: all 0.15s;
+        }
+        
+        .fullscreen-btn:hover {
+            background: var(--light-bg);
+        }
+        
+        .fullscreen-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .map-controls {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+        
+        .exit-fullscreen-btn {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--navy);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(15, 36, 88, 0.3);
+        }
+        
+        .exit-fullscreen-btn:hover {
+            background: #1a3a7a;
+        }
+        
+        .exit-fullscreen-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .widget-container.fullscreen .exit-fullscreen-btn {
+            display: inline-flex;
+        }
+        
+        .widget-container.fullscreen .fullscreen-btn {
+            display: none;
+        }
+        
         /* Custom confirm modal */
         .modal-overlay {
             position: fixed;
@@ -349,6 +453,19 @@
         
         <div class="map-wrapper">
             <div id="map"></div>
+            <div class="map-controls">
+                <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                </button>
+                <button class="exit-fullscreen-btn" id="exitFullscreenBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                    </svg>
+                    Exit Fullscreen
+                </button>
+            </div>
             <div class="map-overlay">
                 Features: <span class="feature-count" id="featureCount">0</span>
             </div>
@@ -414,7 +531,7 @@
                     name: 'Saraji',
                     company: 'BMA',
                     tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/saraji/{z}/{x}/{y}.png',
-                    center: [148.13, -22.42],
+                    center: [148.30, -22.42],
                     minZoom: 14,
                     maxZoom: 21,
                     defaultZoom: 17
@@ -747,6 +864,28 @@
                 });
             }
             
+            // Fullscreen toggle
+            function toggleFullscreen(enable) {
+                const container = document.querySelector('.widget-container');
+                
+                if (enable) {
+                    container.classList.add('fullscreen');
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    container.classList.remove('fullscreen');
+                    document.body.style.overflow = '';
+                }
+                
+                // OpenLayers needs to update its size after container change
+                setTimeout(() => {
+                    if (map) map.updateSize();
+                }, 100);
+            }
+            
+            function isFullscreen() {
+                return document.querySelector('.widget-container').classList.contains('fullscreen');
+            }
+            
             // Event listeners
             function initEvents() {
                 document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
@@ -762,6 +901,10 @@
                     btn.addEventListener('click', function() { switchLayer(this.dataset.layer); });
                 });
                 
+                // Fullscreen buttons
+                document.getElementById('fullscreenBtn').addEventListener('click', () => toggleFullscreen(true));
+                document.getElementById('exitFullscreenBtn').addEventListener('click', () => toggleFullscreen(false));
+                
                 // Modal buttons
                 document.getElementById('modalCancel').addEventListener('click', hideConfirmModal);
                 document.getElementById('modalConfirm').addEventListener('click', function() {
@@ -776,8 +919,12 @@
                 
                 document.addEventListener('keydown', function(e) {
                     if (e.key === 'Escape') {
-                        hideConfirmModal();
-                        setDrawTool(null);
+                        if (isFullscreen()) {
+                            toggleFullscreen(false);
+                        } else {
+                            hideConfirmModal();
+                            setDrawTool(null);
+                        }
                     }
                     if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undoLast(); }
                 });
