@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Drawing Widget</title>
+    
+    <!-- OpenLayers -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@8.2.0/ol.css">
+    <script src="https://cdn.jsdelivr.net/npm/ol@8.2.0/dist/ol.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8f9fb;
+            color: #1a1f36;
+            line-height: 1.5;
+        }
+        
+        .widget-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            max-width: 100%;
+        }
+        
+        .site-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            border-radius: 10px;
+            color: white;
+        }
+        
+        .site-header h4 { font-size: 14px; font-weight: 600; }
+        .site-header p { font-size: 12px; opacity: 0.9; }
+        
+        .site-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 12px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        
+        .toolbar-group {
+            display: flex;
+            gap: 4px;
+            padding-right: 12px;
+            border-right: 1px solid #e5e7eb;
+        }
+        
+        .toolbar-group:last-child { border-right: none; padding-right: 0; }
+        
+        .tool-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: inherit;
+            color: #374151;
+            background: #f3f4f6;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .tool-btn:hover { background: #e5e7eb; }
+        .tool-btn.active { background: #2563eb; color: white; }
+        .tool-btn.danger { color: #dc2626; }
+        .tool-btn.danger:hover { background: #fef2f2; }
+        .tool-btn svg { width: 16px; height: 16px; }
+        
+        .map-wrapper {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        #map { width: 100%; height: 450px; background: #e8ecf1; }
+        
+        .map-overlay {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(8px);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #6b7280;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .feature-count { font-weight: 600; color: #2563eb; }
+        
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: white;
+            border-radius: 8px;
+            font-size: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .status-indicator { display: flex; align-items: center; gap: 6px; }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d1d5db;
+        }
+        
+        .status-dot.ready { background: #10b981; }
+        .status-dot.drawing { background: #f59e0b; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .layer-selector { display: flex; gap: 4px; margin-left: auto; }
+        
+        .layer-btn {
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 500;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .layer-btn:hover { background: #f3f4f6; }
+        .layer-btn.active { background: #1e293b; color: white; border-color: #1e293b; }
+        
+        .ol-zoom { top: auto; bottom: 12px; right: 12px; left: auto; }
+        .ol-zoom button { width: 32px; height: 32px; background: white; color: #374151; border-radius: 6px; }
+        
+        .debug-panel {
+            padding: 10px;
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            font-size: 11px;
+            font-family: monospace;
+            display: none;
+        }
+        
+        .debug-panel.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="widget-container">
+        <div class="site-header">
+            <div class="site-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                </svg>
+            </div>
+            <div>
+                <h4 id="siteName">Loading...</h4>
+                <p id="siteInfo">Initializing map</p>
+            </div>
+        </div>
+        
+        <!-- Debug panel - shows when there's an issue -->
+        <div class="debug-panel" id="debugPanel"></div>
+        
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <button class="tool-btn" data-tool="Polygon" title="Draw Polygon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/>
+                    </svg>
+                    Polygon
+                </button>
+                <button class="tool-btn" data-tool="Box" title="Draw Rectangle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    </svg>
+                    Rectangle
+                </button>
+                <button class="tool-btn" data-tool="Circle" title="Draw Circle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                    </svg>
+                    Circle
+                </button>
+            </div>
+            
+            <div class="toolbar-group">
+                <button class="tool-btn" data-tool="LineString" title="Draw Line">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 20L20 4"/>
+                        <circle cx="4" cy="20" r="2" fill="currentColor"/>
+                        <circle cx="20" cy="4" r="2" fill="currentColor"/>
+                    </svg>
+                    Line
+                </button>
+                <button class="tool-btn" data-tool="Point" title="Place Point">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                        <circle cx="12" cy="12" r="8"/>
+                    </svg>
+                    Point
+                </button>
+            </div>
+            
+            <div class="toolbar-group">
+                <button class="tool-btn" id="undoBtn" title="Undo Last">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/>
+                    </svg>
+                    Undo
+                </button>
+                <button class="tool-btn danger" id="clearBtn" title="Clear All">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    </svg>
+                    Clear
+                </button>
+            </div>
+            
+            <div class="layer-selector">
+                <button class="layer-btn" data-layer="osm">Street</button>
+                <button class="layer-btn" data-layer="satellite">Satellite</button>
+                <button class="layer-btn active" data-layer="ortho" id="orthoBtn">Ortho</button>
+            </div>
+        </div>
+        
+        <div class="map-wrapper">
+            <div id="map"></div>
+            <div class="map-overlay">
+                Features: <span class="feature-count" id="featureCount">0</span>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-indicator">
+                <span class="status-dot ready" id="statusDot"></span>
+                <span id="statusText">Ready</span>
+            </div>
+            <span id="coordDisplay">--</span>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // MAP DRAWING WIDGET - SIMPLIFIED VERSION
+        // ============================================================
+        // 
+        // SETUP: For each site, create a separate widget in JotForm with URL:
+        //   widget.html?site=SITE_KEY
+        //
+        // Example: widget.html?site=binduli-north
+        //
+        // The SITE_KEY must match a key in the SITES object below.
+        //
+        // ============================================================
+        
+        (function() {
+            'use strict';
+            
+            // ========================================
+            // SITE CONFIGURATION - EDIT THIS SECTION
+            // ========================================
+            // Add all your sites here. Each key (e.g., 'binduli-north') 
+            // must match the ?site= parameter in the widget URL.
+            
+            const SITES = {
+                'binduli-north': {
+                    name: 'Binduli North',
+                    company: 'Test Company',
+                    tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/binduli-north/{z}/{x}/{y}.png',
+                    center: [121.3825, -30.775],
+                    minZoom: 14,
+                    maxZoom: 21,
+                    defaultZoom: 18
+                },
+                
+                // BMA Sites - Example
+                'saraji': {
+                    name: 'Saraji',
+                    company: 'BMA',
+                    tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/saraji/{z}/{x}/{y}.png',
+                    center: [148.13, -22.42],
+                    minZoom: 14,
+                    maxZoom: 21,
+                    defaultZoom: 17
+                },
+                'peak-downs': {
+                    name: 'Peak Downs',
+                    company: 'BMA',
+                    tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/peak-downs/{z}/{x}/{y}.png',
+                    center: [148.19, -22.26],
+                    minZoom: 14,
+                    maxZoom: 21,
+                    defaultZoom: 17
+                },
+                'goonyella': {
+                    name: 'Goonyella',
+                    company: 'BMA',
+                    tileUrl: 'https://s3-map-tiles.s3.ap-southeast-2.amazonaws.com/sites/goonyella/{z}/{x}/{y}.png',
+                    center: [148.08, -21.82],
+                    minZoom: 14,
+                    maxZoom: 21,
+                    defaultZoom: 17
+                }
+                
+                // Add more sites here...
+            };
+            
+            // ========================================
+            // END OF CONFIGURATION
+            // ========================================
+            
+            // Get site from URL
+            function getUrlParam(name) {
+                const params = new URLSearchParams(window.location.search);
+                return params.get(name);
+            }
+            
+            const siteKey = getUrlParam('site');
+            const SITE = SITES[siteKey];
+            
+            // Debug helper
+            function debug(msg) {
+                console.log('[Widget]', msg);
+                const panel = document.getElementById('debugPanel');
+                panel.innerHTML += msg + '<br>';
+            }
+            
+            function showDebug() {
+                document.getElementById('debugPanel').classList.add('show');
+            }
+            
+            // Validate site
+            if (!siteKey) {
+                debug('ERROR: No site specified in URL');
+                debug('URL should be: widget.html?site=your-site-key');
+                debug('Available sites: ' + Object.keys(SITES).join(', '));
+                showDebug();
+            } else if (!SITE) {
+                debug('ERROR: Site "' + siteKey + '" not found in SITES config');
+                debug('Available sites: ' + Object.keys(SITES).join(', '));
+                debug('Check that the site key matches exactly (case-sensitive)');
+                showDebug();
+            } else {
+                debug('Loaded site: ' + SITE.name);
+                debug('Center: [' + SITE.center.join(', ') + ']');
+                debug('Tiles: ' + SITE.tileUrl);
+            }
+            
+            // Update header
+            if (SITE) {
+                document.getElementById('siteName').textContent = SITE.name;
+                document.getElementById('siteInfo').textContent = SITE.company || 'Select a drawing tool to begin';
+            } else {
+                document.getElementById('siteName').textContent = 'Configuration Error';
+                document.getElementById('siteInfo').textContent = 'Check console for details';
+            }
+            
+            // State
+            let map = null;
+            let drawSource = null;
+            let drawInteraction = null;
+            let featureHistory = [];
+            
+            // Layers
+            const osmLayer = new ol.layer.Tile({
+                source: new ol.source.OSM(),
+                visible: false
+            });
+            
+            const satelliteLayer = new ol.layer.Tile({
+                source: new ol.source.XYZ({
+                    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    maxZoom: 19
+                }),
+                visible: false
+            });
+            
+            let orthoLayer = null;
+            if (SITE && SITE.tileUrl) {
+                orthoLayer = new ol.layer.Tile({
+                    source: new ol.source.XYZ({
+                        url: SITE.tileUrl,
+                        minZoom: SITE.minZoom || 14,
+                        maxZoom: SITE.maxZoom || 21
+                    }),
+                    visible: true
+                });
+            }
+            
+            // Draw style
+            const drawStyle = new ol.style.Style({
+                fill: new ol.style.Fill({ color: 'rgba(37, 99, 235, 0.2)' }),
+                stroke: new ol.style.Stroke({ color: '#2563eb', width: 2 }),
+                image: new ol.style.Circle({
+                    radius: 6,
+                    fill: new ol.style.Fill({ color: '#2563eb' }),
+                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
+                })
+            });
+            
+            // Initialize map
+            function initMap() {
+                drawSource = new ol.source.Vector();
+                
+                const drawLayer = new ol.layer.Vector({
+                    source: drawSource,
+                    style: drawStyle
+                });
+                
+                const layers = [osmLayer, satelliteLayer];
+                if (orthoLayer) layers.push(orthoLayer);
+                layers.push(drawLayer);
+                
+                // Use site center or default
+                const center = SITE ? SITE.center : [134, -25];
+                const zoom = SITE ? (SITE.defaultZoom || 17) : 4;
+                
+                map = new ol.Map({
+                    target: 'map',
+                    layers: layers,
+                    view: new ol.View({
+                        center: ol.proj.fromLonLat(center),
+                        zoom: zoom,
+                        maxZoom: SITE ? SITE.maxZoom : 21
+                    }),
+                    controls: ol.control.defaults.defaults().extend([
+                        new ol.control.ScaleLine()
+                    ])
+                });
+                
+                // Coordinate display
+                map.on('pointermove', function(evt) {
+                    const coords = ol.proj.toLonLat(evt.coordinate);
+                    document.getElementById('coordDisplay').textContent = 
+                        coords[1].toFixed(5) + ', ' + coords[0].toFixed(5);
+                });
+                
+                drawSource.on('change', function() {
+                    document.getElementById('featureCount').textContent = drawSource.getFeatures().length;
+                });
+                
+                // Hide ortho button if no ortho layer
+                if (!orthoLayer) {
+                    document.getElementById('orthoBtn').style.display = 'none';
+                    osmLayer.setVisible(true);
+                    document.querySelector('[data-layer="osm"]').classList.add('active');
+                    document.querySelector('[data-layer="ortho"]').classList.remove('active');
+                }
+            }
+            
+            // Drawing tools
+            function setDrawTool(toolType) {
+                if (drawInteraction) {
+                    map.removeInteraction(drawInteraction);
+                    drawInteraction = null;
+                }
+                
+                document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.tool === toolType);
+                });
+                
+                if (!toolType) {
+                    updateStatus('ready', 'Ready - Select a tool');
+                    return;
+                }
+                
+                const options = { source: drawSource, style: drawStyle };
+                
+                if (toolType === 'Box') {
+                    options.type = 'Circle';
+                    options.geometryFunction = ol.interaction.Draw.createBox();
+                } else if (toolType === 'Circle') {
+                    options.type = 'Circle';
+                } else {
+                    options.type = toolType;
+                }
+                
+                drawInteraction = new ol.interaction.Draw(options);
+                
+                drawInteraction.on('drawstart', () => updateStatus('drawing', 'Drawing...'));
+                drawInteraction.on('drawend', (evt) => {
+                    featureHistory.push(evt.feature);
+                    updateStatus('ready', 'Feature added');
+                    sendDataToJotForm();
+                });
+                
+                map.addInteraction(drawInteraction);
+                updateStatus('ready', toolType + ' tool active');
+            }
+            
+            function undoLast() {
+                if (featureHistory.length > 0) {
+                    drawSource.removeFeature(featureHistory.pop());
+                    sendDataToJotForm();
+                }
+            }
+            
+            function clearAll() {
+                if (drawSource.getFeatures().length && confirm('Clear all features?')) {
+                    drawSource.clear();
+                    featureHistory = [];
+                    sendDataToJotForm();
+                }
+            }
+            
+            function updateStatus(state, text) {
+                document.getElementById('statusDot').className = 'status-dot ' + state;
+                document.getElementById('statusText').textContent = text;
+            }
+            
+            // Layer switching
+            function switchLayer(type) {
+                document.querySelectorAll('.layer-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.layer === type);
+                });
+                
+                osmLayer.setVisible(type === 'osm');
+                satelliteLayer.setVisible(type === 'satellite');
+                if (orthoLayer) orthoLayer.setVisible(type === 'ortho');
+                
+                if (type === 'ortho' && SITE) {
+                    map.getView().animate({
+                        center: ol.proj.fromLonLat(SITE.center),
+                        zoom: SITE.defaultZoom || 17,
+                        duration: 500
+                    });
+                }
+            }
+            
+            // KML generation
+            function generateKML() {
+                const features = drawSource.getFeatures();
+                if (!features.length) return '';
+                
+                let kml = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n';
+                kml += '<name>' + (SITE ? SITE.name : 'Map Drawing') + '</name>\n';
+                kml += '<Style id="s"><LineStyle><color>ffeb6325</color><width>2</width></LineStyle><PolyStyle><color>33eb6325</color></PolyStyle></Style>\n';
+                
+                features.forEach((f, i) => {
+                    const clone = f.clone();
+                    let geom = clone.getGeometry();
+                    
+                    if (geom.getType() === 'Circle') {
+                        geom = ol.geom.Polygon.fromCircle(geom, 64);
+                    }
+                    geom.transform('EPSG:3857', 'EPSG:4326');
+                    
+                    kml += '<Placemark><name>Feature ' + (i+1) + '</name><styleUrl>#s</styleUrl>\n';
+                    
+                    const type = geom.getType();
+                    if (type === 'Point') {
+                        const c = geom.getCoordinates();
+                        kml += '<Point><coordinates>' + c[0] + ',' + c[1] + ',0</coordinates></Point>\n';
+                    } else if (type === 'LineString') {
+                        kml += '<LineString><coordinates>' + geom.getCoordinates().map(c => c[0]+','+c[1]+',0').join(' ') + '</coordinates></LineString>\n';
+                    } else if (type === 'Polygon') {
+                        kml += '<Polygon><outerBoundaryIs><LinearRing><coordinates>' + geom.getCoordinates()[0].map(c => c[0]+','+c[1]+',0').join(' ') + '</coordinates></LinearRing></outerBoundaryIs></Polygon>\n';
+                    }
+                    
+                    kml += '</Placemark>\n';
+                });
+                
+                kml += '</Document>\n</kml>';
+                return kml;
+            }
+            
+            // JotForm integration
+            const qid = getUrlParam('qid');
+            const inJotForm = (window.self !== window.top) && qid;
+            
+            function sendDataToJotForm() {
+                if (!inJotForm) return;
+                window.parent.postMessage(JSON.stringify({
+                    type: 'data',
+                    qid: qid,
+                    value: generateKML(),
+                    valid: true
+                }), '*');
+            }
+            
+            function initJotForm() {
+                if (!inJotForm) return;
+                
+                window.parent.postMessage(JSON.stringify({ type: 'frameReady', qid: qid }), '*');
+                sendDataToJotForm();
+                
+                window.addEventListener('message', function(e) {
+                    try {
+                        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                        if (data.type === 'submit') {
+                            window.parent.postMessage(JSON.stringify({
+                                type: 'submit',
+                                qid: qid,
+                                value: generateKML(),
+                                valid: true
+                            }), '*');
+                        }
+                    } catch (err) {}
+                });
+            }
+            
+            // Event listeners
+            function initEvents() {
+                document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setDrawTool(this.classList.contains('active') ? null : this.dataset.tool);
+                    });
+                });
+                
+                document.getElementById('undoBtn').addEventListener('click', undoLast);
+                document.getElementById('clearBtn').addEventListener('click', clearAll);
+                
+                document.querySelectorAll('.layer-btn').forEach(btn => {
+                    btn.addEventListener('click', function() { switchLayer(this.dataset.layer); });
+                });
+                
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') setDrawTool(null);
+                    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undoLast(); }
+                });
+            }
+            
+            // Initialize
+            initMap();
+            initEvents();
+            initJotForm();
+            
+        })();
+    </script>
+</body>
+</html>
