@@ -590,53 +590,48 @@
             }
 
             function init() {
-    initMap();
-    document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-        btn.addEventListener('click', () => setTool(btn.classList.contains('active') ? null : btn.dataset.tool));
-    });
-    document.getElementById('undoBtn').addEventListener('click', () => {
-        if (State.featureHistory.length) { State.drawSource.removeFeature(State.featureHistory.pop()); sendToJotForm(); }
-    });
-    document.getElementById('clearBtn').addEventListener('click', clearFeatures);
-    document.getElementById('downloadBtn').addEventListener('click', downloadKML);
-    document.querySelectorAll('.layer-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchLayer(btn.dataset.layer));
-    });
-    document.getElementById('fullscreenToggle').addEventListener('click', toggleFullscreen);
-    document.addEventListener('fullscreenchange', updateFullscreenUI);
-    document.getElementById('modalCancel').addEventListener('click', () => Modal.hide());
-    document.getElementById('genericModal').addEventListener('click', (e) => { if(e.target.id === 'genericModal') Modal.hide(); });
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => State.map && State.map.updateSize(), 100);
-    });
-
-    // NEW: Listen for JotForm messages during submission
-    window.addEventListener('message', function(event) {
-        try {
-            const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-            
-            if (msg.type === 'getData') {
-                sendToJotForm();
+                initMap();
+                document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                    btn.addEventListener('click', () => setTool(btn.classList.contains('active') ? null : btn.dataset.tool));
+                });
+                document.getElementById('undoBtn').addEventListener('click', () => {
+                    if (State.featureHistory.length) { State.drawSource.removeFeature(State.featureHistory.pop()); sendToJotForm(); }
+                });
+                document.getElementById('clearBtn').addEventListener('click', clearFeatures);
+                document.getElementById('downloadBtn').addEventListener('click', downloadKML);
+                document.querySelectorAll('.layer-btn').forEach(btn => {
+                    btn.addEventListener('click', () => switchLayer(btn.dataset.layer));
+                });
+                document.getElementById('fullscreenToggle').addEventListener('click', toggleFullscreen);
+                document.addEventListener('fullscreenchange', updateFullscreenUI);
+                document.getElementById('modalCancel').addEventListener('click', () => Modal.hide());
+                document.getElementById('genericModal').addEventListener('click', (e) => { if(e.target.id === 'genericModal') Modal.hide(); });
+                let resizeTimer;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => State.map && State.map.updateSize(), 100);
+                });
+                if (inJotForm) { 
+                    window.parent.postMessage(JSON.stringify({ type: 'frameReady', qid: qid }), '*');
+                    sendToJotForm();
+                    
+                    // Listen for submit request from JotForm
+                    window.addEventListener('message', function(e) {
+                        try {
+                            const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                            if (data.type === 'submit') {
+                                const kml = generateKMLString();
+                                window.parent.postMessage(JSON.stringify({
+                                    type: 'submit',
+                                    qid: qid,
+                                    value: kml,
+                                    valid: true
+                                }), '*');
+                            }
+                        } catch (err) {}
+                    });
+                }
             }
-            
-            if (msg.type === 'getValid') {
-                window.parent.postMessage(JSON.stringify({ 
-                    type: 'valid', 
-                    qid: qid, 
-                    valid: true
-                }), '*');
-            }
-        } catch (e) {
-            // Ignore non-JSON messages
-        }
-    });
-
-    if (inJotForm) { 
-        window.parent.postMessage(JSON.stringify({ type: 'frameReady', qid: qid }), '*'); 
-    }
-}
 
             init();
         })();
