@@ -558,7 +558,15 @@
                 const format = new ol.format.KML({ extractStyles: false, writeStyles: true });
                 const featuresClone = features.map(f => {
                     const clone = f.clone();
-                    clone.getGeometry().transform('EPSG:3857', 'EPSG:4326');
+                    let geom = clone.getGeometry();
+                    
+                    // Convert Circle to Polygon (KML doesn't support circles)
+                    if (geom.getType() === 'Circle') {
+                        geom = ol.geom.Polygon.fromCircle(geom, 64);
+                        clone.setGeometry(geom);
+                    }
+                    
+                    geom.transform('EPSG:3857', 'EPSG:4326');
                     clone.setStyle(new ol.style.Style({
                         fill: new ol.style.Fill({ color: [239, 186, 10, 0.3] }),
                         stroke: new ol.style.Stroke({ color: [239, 186, 10, 1], width: 2 })
