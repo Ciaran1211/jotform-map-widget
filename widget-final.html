@@ -555,25 +555,43 @@
             function generateKMLString() {
                 const features = State.drawSource.getFeatures();
                 if (!features.length) return '';
-                const format = new ol.format.KML({ extractStyles: false, writeStyles: true });
-                const featuresClone = features.map(f => {
-                    const clone = f.clone();
-                    let geom = clone.getGeometry();
+                
+                // Build KML manually for FlightHub 2 compatibility
+                let placemarks = '';
+                
+                features.forEach((feature, index) => {
+                    let geom = feature.getGeometry().clone();
                     
                     // Convert Circle to Polygon (KML doesn't support circles)
                     if (geom.getType() === 'Circle') {
                         geom = ol.geom.Polygon.fromCircle(geom, 64);
-                        clone.setGeometry(geom);
                     }
                     
+                    // Transform to WGS84
                     geom.transform('EPSG:3857', 'EPSG:4326');
-                    clone.setStyle(new ol.style.Style({
-                        fill: new ol.style.Fill({ color: [239, 186, 10, 0.3] }),
-                        stroke: new ol.style.Stroke({ color: [239, 186, 10, 1], width: 2 })
-                    }));
-                    return clone;
+                    
+                    const geomType = geom.getType();
+                    let geometryKML = '';
+                    
+                    if (geomType === 'Polygon') {
+                        const coords = geom.getCoordinates()[0];
+                        const coordString = coords.map(c => `${c[0]},${c[1]},0`).join(' ');
+                        geometryKML = '<Polygon><tessellate>1</tessellate><outerBoundaryIs><LinearRing><coordinates>' + coordString + '</coordinates></LinearRing></outerBoundaryIs></Polygon>';
+                    } else if (geomType === 'Point') {
+                        const coords = geom.getCoordinates();
+                        geometryKML = '<Point><coordinates>' + coords[0] + ',' + coords[1] + ',0</coordinates></Point>';
+                    } else if (geomType === 'LineString') {
+                        const coords = geom.getCoordinates();
+                        const coordString = coords.map(c => `${c[0]},${c[1]},0`).join(' ');
+                        geometryKML = '<LineString><tessellate>1</tessellate><coordinates>' + coordString + '</coordinates></LineString>';
+                    }
+                    
+                    placemarks += '<Placemark><name>Feature ' + (index + 1) + '</name><Style><LineStyle><color>ff00aaff</color><width>2</width></LineStyle><PolyStyle><color>4c00aaff</color></PolyStyle></Style>' + geometryKML + '</Placemark>';
                 });
-                return format.writeFeatures(featuresClone);
+                
+                const kml = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2"><Document><name>Mission Area</name>' + placemarks + '</Document></kml>';
+                
+                return kml;
             }
 
             function downloadKML() {
