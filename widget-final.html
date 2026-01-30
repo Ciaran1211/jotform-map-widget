@@ -395,6 +395,65 @@
         (function() {
             'use strict';
 
+            const SITES = {
+                'binduli-north': {
+                    name: 'Binduli North',
+                    company: 'Norton',
+                    tileUrl: 'https://d3mamsvnskv4vj.cloudfront.net/binduli-north/{z}/{x}/{y}.png',
+                    center: [121.37, -30.78],
+                    defaultZoom: 15
+                },
+                'gudai-darri': {
+                    name: 'Gudai Darri',
+                    company: 'Rio Tinto',
+                    tileUrl: 'https://d3mamsvnskv4vj.cloudfront.net/gudai-darri/{z}/{x}/{y}.png',
+                    center: [119.03, -22.53],
+                    defaultZoom: 15
+                },
+                'gruyere': {
+                    name: 'Gruyere',
+                    company: 'Goldfields',
+                    tileUrl: 'https://d3mamsvnskv4vj.cloudfront.net/gruyere/{z}/{x}/{y}.png',
+                    center: [123.8552,-27.9897],
+                    defaultZoom: 15
+                },
+                'saraji': {
+                    name: 'Saraji',
+                    company: 'BMA',
+                    tileUrl: 'https://d3mamsvnskv4vj.cloudfront.net/saraji/{z}/{x}/{y}.png',
+                    center: [148.30, -22.42],
+                    defaultZoom: 15
+                },
+                'peak-downs': {
+                    name: 'Peak Downs',
+                    company: 'BMA',
+                    tileUrl: 'https://d3mamsvnskv4vj.cloudfront.net/peak-downs/{z}/{x}/{y}.png',
+                    center: [148.19, -22.26],
+                    defaultZoom: 15
+                },
+                'goonyella': {
+                    name: 'Goonyella',
+                    company: 'BMA',
+                    tileUrl: 'https://d3mamsvnskv4vj.cloudfront.net/goonyella/{z}/{x}/{y}.png',
+                    center: [147.97, -21.77],
+                    defaultZoom: 15
+                },
+                'koth': {
+                    name: 'KOTH',
+                    company: 'Vault Minerals',
+                    tileUrl: 'https://d3mamsvnskv4vj.cloudfront.net/koth/{z}/{x}/{y}.png',
+                    center: [121.16, -28.67],
+                    defaultZoom: 15
+                },
+                'caval-ridge': {
+                    name: 'Caval Ridge',
+                    company: 'BMA',
+                    tileUrl: 'https://d3mamsvnskv4vj.cloudfront.net/caval_ridge/{z}/{x}/{y}.png',
+                    center: [148.05, -22.10],
+                    defaultZoom: 15
+                }
+            };
+            
             const State = {
                 map: null,
                 drawSource: null,
@@ -402,20 +461,44 @@
                 featureHistory: [],
                 labelLayer: null,
                 pendingFeature: null,
-                featureCounter: 0
+                featureCounter: 0,
+                site: null
             };
 
+            function getUrlParam(name) { return new URLSearchParams(window.location.search).get(name); }
+            function debug(msg) { 
+                const el = document.getElementById('debugPanel');
+                if (el) { el.classList.add('show'); el.innerHTML += msg + '<br>'; }
+                console.log('[Widget]', msg);
+            }
+
             const Modal = {
-                show(title, msg, btnText, btnType, onConfirm) {
-                    document.getElementById('modalTitle').textContent = title;
-                    document.getElementById('modalMessage').textContent = msg;
-                    const btn = document.getElementById('modalConfirm');
-                    btn.textContent = btnText;
-                    btn.className = 'modal-btn ' + btnType;
-                    btn.onclick = () => { Modal.hide(); onConfirm(); };
-                    document.getElementById('genericModal').classList.add('show');
+                el: document.getElementById('genericModal'),
+                titleEl: document.getElementById('modalTitle'),
+                msgEl: document.getElementById('modalMessage'),
+                confirmBtn: document.getElementById('modalConfirm'),
+                cancelBtn: document.getElementById('modalCancel'),
+
+                show(title, message, confirmText, type, onConfirm) {
+                    this.titleEl.textContent = title;
+                    this.msgEl.textContent = message;
+                    this.confirmBtn.textContent = confirmText || 'Confirm';
+                    this.confirmBtn.className = `modal-btn ${type === 'danger' ? 'danger' : 'primary'}`;
+                    
+                    const newConfirm = this.confirmBtn.cloneNode(true);
+                    this.confirmBtn.parentNode.replaceChild(newConfirm, this.confirmBtn);
+                    this.confirmBtn = newConfirm;
+
+                    this.confirmBtn.addEventListener('click', () => {
+                        this.hide();
+                        if (onConfirm) onConfirm();
+                    });
+
+                    this.el.classList.add('show');
                 },
-                hide() { document.getElementById('genericModal').classList.remove('show'); }
+                hide() {
+                    this.el.classList.remove('show');
+                }
             };
 
             const NameModal = {
@@ -463,11 +546,6 @@
                 }
             };
 
-            function getUrlParam(name) {
-                const url = new URL(window.location.href);
-                return url.searchParams.get(name);
-            }
-
             function getFeatureTypeLabel(geometry) {
                 const type = geometry.getType();
                 switch(type) {
@@ -480,27 +558,38 @@
             }
 
             function initMap() {
-                const siteParam = getUrlParam('site') || 'saraji';
-                const sites = {
-                    'saraji': { name: 'Saraji Mine', center: [148.379, -22.537], zoom: 14, orthoUrl: 'https://drone-ortho-tiles.s3.ap-southeast-2.amazonaws.com/saraji/{z}/{x}/{y}.png' },
-                    'gruyere': { name: 'Gruyere Gold Mine', center: [123.576, -28.669], zoom: 14, orthoUrl: 'https://drone-ortho-tiles.s3.ap-southeast-2.amazonaws.com/gruyere/{z}/{x}/{y}.png' },
-                    'binduli-north': { name: 'Binduli North', center: [121.330, -30.810], zoom: 14, orthoUrl: 'https://drone-ortho-tiles.s3.ap-southeast-2.amazonaws.com/binduli-north/{z}/{x}/{y}.png' }
-                };
-                const site = sites[siteParam] || sites['saraji'];
-                document.getElementById('siteName').textContent = site.name;
-                document.getElementById('siteInfo').textContent = 'Draw polygons, points or lines';
+                const siteKey = getUrlParam('site');
+                State.site = SITES[siteKey];
 
-                const osmLayer = new ol.layer.Tile({ source: new ol.source.OSM(), name: 'osm', visible: false });
-                const satLayer = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', maxZoom: 20 }), name: 'satellite', visible: false });
-                const orthoLayer = new ol.layer.Tile({ source: new ol.source.XYZ({ url: site.orthoUrl, minZoom: 10, maxZoom: 21 }), name: 'ortho', visible: true });
+                if (!State.site) {
+                    debug('ERROR: Site key not found. Use ?site=key');
+                    document.getElementById('siteName').textContent = 'Configuration Error';
+                    return;
+                }
+
+                document.getElementById('siteName').textContent = State.site.name;
+                document.getElementById('siteInfo').textContent = State.site.company;
+
+                const osm = new ol.layer.Tile({ source: new ol.source.OSM(), visible: false, properties: {name: 'osm'} });
+                const satellite = new ol.layer.Tile({ 
+                    source: new ol.source.XYZ({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZoom: 19 }), 
+                    visible: false,
+                    properties: {name: 'satellite'} 
+                });
                 
+                const ortho = new ol.layer.Tile({
+                    source: new ol.source.XYZ({ url: State.site.tileUrl, minZoom: 14, maxZoom: 21 }),
+                    visible: true,
+                    properties: {name: 'ortho'}
+                });
+
                 State.drawSource = new ol.source.Vector();
                 const drawLayer = new ol.layer.Vector({
                     source: State.drawSource,
                     style: new ol.style.Style({
-                        stroke: new ol.style.Stroke({ color: '#0ABAEF', width: 3 }),
                         fill: new ol.style.Fill({ color: 'rgba(10, 186, 239, 0.2)' }),
-                        image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#0ABAEF' }), stroke: new ol.style.Stroke({ color: '#fff', width: 2 }) })
+                        stroke: new ol.style.Stroke({ color: '#0ABAEF', width: 2 }),
+                        image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color: '#0ABAEF' }), stroke: new ol.style.Stroke({ color: '#fff', width: 2 }) })
                     })
                 });
 
@@ -523,12 +612,16 @@
 
                 State.map = new ol.Map({
                     target: 'map',
-                    layers: [osmLayer, satLayer, orthoLayer, drawLayer, State.labelLayer],
-                    view: new ol.View({ center: ol.proj.fromLonLat(site.center), zoom: site.zoom }),
-                    controls: ol.control.defaults.defaults().extend([new ol.control.ScaleLine()])
+                    layers: [osm, satellite, ortho, drawLayer, State.labelLayer],
+                    view: new ol.View({
+                        center: ol.proj.fromLonLat(State.site.center),
+                        zoom: State.site.defaultZoom,
+                        maxZoom: 21
+                    }),
+                    controls: ol.control.defaults.defaults({ zoom: false }).extend([new ol.control.ScaleLine()])
                 });
 
-                State.map.on('pointermove', (evt) => {
+                State.map.on('pointermove', evt => {
                     const coords = ol.proj.toLonLat(evt.coordinate);
                     document.getElementById('coordDisplay').textContent = `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`;
                 });
@@ -732,7 +825,7 @@
                 });
                 document.getElementById('fullscreenToggle').addEventListener('click', toggleFullscreen);
                 document.addEventListener('fullscreenchange', updateFullscreenUI);
-                document.getElementById('modalCancel').addEventListener('click', () => Modal.hide());
+                Modal.cancelBtn.addEventListener('click', () => Modal.hide());
                 document.getElementById('genericModal').addEventListener('click', (e) => { if(e.target.id === 'genericModal') Modal.hide(); });
                 
                 // Name modal event listeners
